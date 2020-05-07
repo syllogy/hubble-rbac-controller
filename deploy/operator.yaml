@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hubble-rbac-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: hubble-rbac-controller
+  template:
+    metadata:
+      labels:
+        name: hubble-rbac-controller
+    spec:
+      serviceAccountName: hubble-rbac-controller
+      containers:
+        - name: hubble-rbac-controller
+          # Replace this with the built image name
+          image: REPLACE_IMAGE
+          command:
+          - hubble-rbac-controller
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "hubble-rbac-controller"
