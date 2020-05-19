@@ -9,6 +9,8 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/lib/pq v1.3.0
 	github.com/operator-framework/operator-sdk v0.15.1
+	github.com/prometheus/common v0.7.0
+	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271

@@ -50,6 +50,15 @@ func (r *AwsRole) LookupDatabaseLoginPolicyForUser(email string) *DatabaseLoginP
 	return nil
 }
 
+func (r *AwsRole) LookupDatabaseLoginPolicyForUsername(username string) *DatabaseLoginPolicy {
+	for _,p := range r.DatabaseLoginPolicies {
+		if p.DatabaseUsername == username {
+			return p
+		}
+	}
+	return nil
+}
+
 func (r *AwsRole) DeclareDatabaseLoginPolicyForUser(email string, username string) *DatabaseLoginPolicy {
 	existing := r.LookupDatabaseLoginPolicyForUser(email)
 	if existing != nil {
