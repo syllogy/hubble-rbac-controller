@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"github.com/lunarway/hubble-rbac-controller/internal/core/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
@@ -18,15 +19,6 @@ func init() {
 	//log.SetFormatter(&log.JSONFormatter{PrettyPrint:true})
 }
 
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func GenerateString(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
-}
 
 
 
@@ -60,7 +52,7 @@ func Test_CreatePolicy_Is_Idempotent(t *testing.T) {
 	}
 `
 
-	policyName := GenerateString(10)
+	policyName := utils.GenerateRandomString(10)
 	_, err := iamClient.createOrUpdatePolicy(policyName, document)
 	assert.NoError(err)
 
