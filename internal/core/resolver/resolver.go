@@ -52,7 +52,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				//Set needed grants on the user group
 				group := database.DeclareGroup(role.Name)
 				for _,schema := range role.Acl {
-					group.GrantSchema(redshift.Schema{ Name: string(schema) }) //TODO: is it ok to assume that there is a schema with name = dataset?
+					group.GrantSchema(&redshift.Schema{ Name: string(schema) }) //TODO: is it ok to assume that there is a schema with name = dataset?
 				}
 
 				//Declare a redshift user for the user/role and add it to the group
@@ -63,7 +63,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 						Name:             glueDb.ShortName,
 						GlueDatabaseName: glueDb.Name,
 					}
-					group.GrantExternalSchema(schema)
+					group.GrantExternalSchema(&schema)
 				}
 			}
 

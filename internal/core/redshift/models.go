@@ -1,9 +1,11 @@
 package redshift
 
+import "fmt"
+
 type Group struct {
 	Name string
-	GrantedSchemas []Schema
-	GrantedExternalSchemas []ExternalSchema
+	GrantedSchemas []*Schema
+	GrantedExternalSchemas []*ExternalSchema
 }
 
 type Schema struct {
@@ -91,11 +93,15 @@ func (d *Database) DeclareUser(name string, of *Group) *User {
 	return newUser
 }
 
-func (g *Group) GrantSchema(schema Schema) {
+func (d *Database) Identifier() string {
+	return fmt.Sprintf("%s/%s", d.ClusterIdentifier, d.Name)
+}
+
+func (g *Group) GrantSchema(schema *Schema) {
 	g.GrantedSchemas = append(g.GrantedSchemas, schema)
 }
 
-func (g *Group) GrantExternalSchema(schema ExternalSchema) {
+func (g *Group) GrantExternalSchema(schema *ExternalSchema) {
 	g.GrantedExternalSchemas = append(g.GrantedExternalSchemas, schema)
 }
 
@@ -111,3 +117,20 @@ func (g *Group) Granted() []string {
 	return schemas
 }
 
+func (g *Group) LookupGrantedSchema(name string) *Schema {
+	for _, schema := range g.GrantedSchemas {
+		if schema.Name == name {
+			return schema
+		}
+	}
+	return nil
+}
+
+func (g *Group) LookupGrantedExternalSchema(name string) *ExternalSchema {
+	for _, schema := range g.GrantedExternalSchemas {
+		if schema.Name  == name {
+			return schema
+		}
+	}
+	return nil
+}
