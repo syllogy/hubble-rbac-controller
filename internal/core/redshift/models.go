@@ -47,7 +47,16 @@ func (m *Model) LookupDatabase(clusterIdentifier string, name string) *Database 
 	return nil
 }
 
-func (m *Model) DeclareDatabase(clusterIdentifier string, name string, owner *string) *Database {
+func (m *Model) DeclareDatabase(clusterIdentifier string, name string) *Database {
+	return m.declareDatabase(clusterIdentifier, name, nil)
+}
+
+func (m *Model) DeclareDatabaseWithOwner(clusterIdentifier string, name string, owner string) *Database {
+	lowercased := strings.ToLower(owner)
+	return m.declareDatabase(clusterIdentifier, name, &lowercased)
+}
+
+func (m *Model) declareDatabase(clusterIdentifier string, name string, owner *string) *Database {
 	existing := m.LookupDatabase(clusterIdentifier, name)
 	if existing != nil {
 		return existing

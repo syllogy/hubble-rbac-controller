@@ -46,7 +46,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				//Allow user/role to log into the database
 				databaseLoginPolicyForUserAndRole.Allow(db.ClusterIdentifier, db.Name)
 
-				database := model.RedshiftModel.DeclareDatabase(db.ClusterIdentifier, db.Name, nil)
+				database := model.RedshiftModel.DeclareDatabase(db.ClusterIdentifier, db.Name)
 				for _,glue := range db.GlueDatabases {
 					database.DeclareExternalSchema(glue.ShortName, glue.Name)
 				}
@@ -73,7 +73,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				//Allow user/role to log into the database
 				databaseLoginPolicyForUserAndRole.Allow(db.ClusterIdentifier, user.Username)
 
-				database := model.RedshiftModel.DeclareDatabase(db.ClusterIdentifier, user.Username, &userAndRoleUsername)
+				database := model.RedshiftModel.DeclareDatabaseWithOwner(db.ClusterIdentifier, user.Username, userAndRoleUsername)
 				for _,glue := range db.GlueDatabases {
 					database.DeclareExternalSchema(glue.ShortName, glue.Name)
 				}
