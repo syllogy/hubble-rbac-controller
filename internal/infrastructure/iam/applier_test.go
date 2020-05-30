@@ -17,7 +17,7 @@ type EventRecorder struct {
 	events []ApplyEventType
 }
 
-func (e *EventRecorder) handle(eventType ApplyEventType, name string) {
+func (e *EventRecorder) Handle(eventType ApplyEventType, name string) {
 	e.events = append(e.events, eventType)
 }
 
@@ -34,6 +34,12 @@ func (e *EventRecorder) count(eventType ApplyEventType) int {
 const accountId = "478824949770"
 const region = "eu-west-1"
 
+func failOnError(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)
@@ -45,27 +51,19 @@ func setUp() {
 	applier := NewApplier(iamClient, accountId, region, &EventRecorder{})
 
 	roles, err := iamClient.ListRoles()
-	if err != nil {
-		panic(err)
-	}
+	failOnError(err)
 
 	for _, role := range roles {
 		err = applier.deleteRole(role)
-		if err != nil {
-			panic(err)
-		}
+		failOnError(err)
 	}
 
 	policies, err := iamClient.ListPolicies()
-	if err != nil {
-		panic(err)
-	}
+	failOnError(err)
 
 	for _, policy := range policies {
 		err = iamClient.DeletePolicy(policy)
-		if err != nil {
-			panic(err)
-		}
+		failOnError(err)
 	}
 }
 
@@ -81,15 +79,14 @@ func TestApplier_NoRoles(t *testing.T) {
 	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
 
 	err := applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{}})
-
 	assert.NoError(err)
 
 	roles, err := iamClient.ListRoles()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Empty(roles)
 
 	policies, err := iamClient.ListPolicies()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Empty(policies)
 
 	assert.Equal(0, len(eventRecorder.events))
@@ -127,11 +124,11 @@ func TestApplier_SingleRole(t *testing.T) {
 	assert.NoError(err)
 
 	roles, err := iamClient.ListRoles()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Equal(1, len(roles))
 
 	policies, err := iamClient.ListPolicies()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Equal(1, len(policies))
 
 	assert.Equal(1, eventRecorder.count(RoleCreated))
@@ -174,11 +171,11 @@ func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 	assert.NoError(err)
 
 	roles, err := iamClient.ListRoles()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Equal(1, len(roles))
 
 	policies, err := iamClient.ListPolicies()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Equal(1, len(policies))
 
 	assert.Equal(1, eventRecorder.count(RoleCreated))
@@ -227,11 +224,11 @@ func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 	assert.NoError(err)
 
 	roles, err := iamClient.ListRoles()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Equal(1, len(roles))
 
 	policies, err := iamClient.ListPolicies()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Equal(2, len(policies))
 
 	assert.Equal(1, eventRecorder.count(RoleCreated))
@@ -295,11 +292,11 @@ func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 	assert.NoError(err)
 
 	roles, err := iamClient.ListRoles()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Equal(1, len(roles))
 
 	policies, err := iamClient.ListPolicies()
-	assert.NoError(err)
+	failOnError(err)
 	assert.Equal(1, len(policies))
 
 	assert.Equal(1, eventRecorder.count(RoleCreated))
