@@ -135,16 +135,10 @@ func (c *Client) CreateDatabase(name string, owner *string) error {
 	}
 
 	if owner != nil {
-		_, err = c.db.Exec(fmt.Sprintf("CREATE DATABASE %s WITH OWNER=%s", name, owner))
+		_, err = c.db.Exec(fmt.Sprintf("CREATE DATABASE %s WITH OWNER=%s", name, *owner))
 	} else {
 		_, err = c.db.Exec(fmt.Sprintf("CREATE DATABASE %s", name))
 	}
-
-	if err != nil {
-		return err
-	}
-
-	_, err = c.db.Exec(fmt.Sprintf("drop schema public cascade"))
 
 	return err
 }
