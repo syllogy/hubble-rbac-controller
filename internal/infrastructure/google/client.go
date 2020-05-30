@@ -21,6 +21,10 @@ type AwsRoles struct {
 	SessionDuration int `json:"SessionDuration"`
 }
 
+type User struct {
+	Id string
+	email string
+}
 
 // Build and returns an Admin SDK Directory service object authorized with
 // the service accounts that act on behalf of the given user.
@@ -66,19 +70,19 @@ func (client *Client) update(userKey string, awsRoles AwsRoles) error {
 
 	x, err := client.service.Users.Get(userKey).Projection("full").Do()
 	if err != nil {
-		return fmt.Errorf("Unable to retrieve users in domain: %v", err)
+		return fmt.Errorf("Unable to retrieve users: %w", err)
 	}
 
 	jsonRaw, err := json.Marshal(awsRoles)
 	if err != nil {
-		return fmt.Errorf("Unable to marshal AwsRoles: %v", err)
+		return fmt.Errorf("Unable to marshal AwsRoles: %w", err)
 	}
 
 	x.CustomSchemas["AWS"] = jsonRaw
 
 	_, err = client.service.Users.Update(userKey, x).Do()
 	if err != nil {
-		return fmt.Errorf("Unable to update user: %v", err)
+		return fmt.Errorf("Unable to update user: %w", err)
 	}
 
 	return nil
@@ -101,9 +105,9 @@ func (client *Client) createAwsRoles(roles []string) AwsRoles {
 	}
 }
 
-func (client *Client) SetAll(userRoles map[string][]string) error {
+func (client *Client) Users() ([]User, error) {
 
-	result, err := client.service.Users.
+	response, err := client.service.Users.
 		List().
 		Customer("my_customer"). //TODO: what should this be??
 		Projection("full").
@@ -111,20 +115,49 @@ func (client *Client) SetAll(userRoles map[string][]string) error {
 		Do()
 
 	if err != nil {
-		return fmt.Errorf("Unable to retrieve users in domain: %v", err)
+		return nil, err
 	}
 
-	if len(result.Users) == 500 {
-		return fmt.Errorf("Too many users, no more than 500 are supported")
-	} else {
-		for _, u := range result.Users {
-			roles, ok := userRoles[u.PrimaryEmail]
+	if len(response.Users) == 500 {
+		return nil, fmt.Errorf("Too many users, no more than 500 are supported")
+	}
 
-			if ok {
-				awsRoles := client.createAwsRoles(roles)
-				client.update(u.Id, awsRoles)
-			}
+	var result []User
+
+	for _,u := range response.Users {
+		user := User{
+			Id:    u.Id,
+			email: u.PrimaryEmail,
 		}
-		return nil
+		result = append(result, user)
 	}
+
+	return result, nil
+}
+
+func (client *Client) UpdateRoles(userId string, roles []string) error {
+	return client.update(userId, client.createAwsRoles(roles))
+}
+
+func (client *Client) Roles(userId string) ([]string, error) {
+	googleUser, err := client.service.Users.Get(userId).Projection("full").Do()
+
+	if err != nil {
+		return nil, err
+	}
+
+	var awsRoles AwsRoles
+	err = json.Unmarshal(googleUser.CustomSchemas["AWS"], &awsRoles)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result []string
+
+	for _,x := range awsRoles.Roles {
+		result = append(result, x.Value)
+	}
+
+	return result, err
 }
