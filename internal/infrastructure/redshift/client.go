@@ -7,7 +7,6 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/utils"
 	"net/url"
-	"strings"
 )
 
 type Client struct {

@@ -7,13 +7,13 @@ import (
 )
 
 type ClusterCredentials struct {
-	username string
-	password string
-	masterDatabase string
-	host string
-	sslmode string
-	port int
-	externalSchemasSupported bool
+	Username                 string
+	Password                 string
+	MasterDatabase           string
+	Host                     string
+	Sslmode                  string
+	Port                     int
+	ExternalSchemasSupported bool
 }
 
 type ClientGroup struct {
@@ -32,7 +32,7 @@ func (cg ClientGroup) ForDatabase(database *redshift.Database) (*Client, error) 
 		 return nil, errors.New(fmt.Sprintf("Unknown cluster with identifier %s", database.ClusterIdentifier))
 	 }
 
-	return NewClient(credentials.username, credentials.password, credentials.host, database.Name, credentials.sslmode, credentials.port, credentials.externalSchemasSupported)
+	return NewClient(credentials.Username, credentials.Password, credentials.Host, database.Name, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
 
 func (cg ClientGroup) MasterDatabase(database *redshift.Database) (*Client, error) {
@@ -43,5 +43,5 @@ func (cg ClientGroup) MasterDatabase(database *redshift.Database) (*Client, erro
 		return nil, errors.New(fmt.Sprintf("Unknown cluster with identifier %s", database.ClusterIdentifier))
 	}
 
-	return NewClient(credentials.username, credentials.password, credentials.host, credentials.masterDatabase, credentials.sslmode, credentials.port, credentials.externalSchemasSupported)
+	return NewClient(credentials.Username, credentials.Password, credentials.Host, credentials.MasterDatabase, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
