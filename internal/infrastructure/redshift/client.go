@@ -3,9 +3,11 @@ package redshift
 import (
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/utils"
 	"net/url"
+	"strings"
 )
 
 type Client struct {
@@ -13,6 +15,8 @@ type Client struct {
 	user string
 	externalSchemasSupported bool
 }
+
+var duplicateObjectErrorCode pq.ErrorCode = "42710"
 
 func NewClient(user string, password string, addr string, database string, sslmode string, port int, externalSchemasSupported bool) (*Client, error) {
 
@@ -103,7 +107,7 @@ func (c *Client) Groups() ([]string, error) {
 }
 
 func (c *Client) Users() ([]string, error) {
-	return c.stringList("select usename from pg_user")
+		return c.stringList("select usename from pg_user")
 }
 
 func (c *Client) Schemas() ([]string, error) {
@@ -276,7 +280,7 @@ func (c *Client) CreateUser(username string) error {
 		return nil
 	}
 
-	//password is set to a random string, it will never be used because we log in using IAM's GetClusterCredentials
+	//Password is set to a random string, it will never be used because we log in using IAM's GetClusterCredentials
 	_, err = c.db.Exec(fmt.Sprintf("CREATE USER %s PASSWORD '%s'", username, utils.GenerateRandomString(10) + "0"))
 	return err
 }
@@ -297,7 +301,7 @@ func (c *Client) Grants(groupName string) ([]string, error) {
 	//The has_schema_privilege function only works on users (not groups), therefore we need to create a dummy user
 	_, err = c.db.Exec(fmt.Sprintf("CREATE USER dummy_%s PASSWORD '%s' IN GROUP %s", groupName, utils.GenerateRandomString(10) + "0", groupName))
 
-	if err != nil {
+	if err != nil && err.(*pq.Error).Code != duplicateObjectErrorCode {
 		return nil, err
 	}
 
