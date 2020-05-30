@@ -28,6 +28,7 @@ type User struct {
 type Database struct {
 	ClusterIdentifier string
 	Name string
+	Owner *string
 	Users []*User
 	Groups []*Group
 }
@@ -45,7 +46,7 @@ func (m *Model) LookupDatabase(clusterIdentifier string, name string) *Database 
 	return nil
 }
 
-func (m *Model) DeclareDatabase(clusterIdentifier string, name string) *Database {
+func (m *Model) DeclareDatabase(clusterIdentifier string, name string, owner *string) *Database {
 	existing := m.LookupDatabase(clusterIdentifier, name)
 	if existing != nil {
 		return existing

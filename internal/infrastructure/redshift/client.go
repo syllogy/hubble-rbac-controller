@@ -114,7 +114,12 @@ func (c *Client) Databases() ([]string, error) {
 	return c.stringList("SELECT datname FROM pg_database")
 }
 
-func (c *Client) CreateDatabase(name string) error {
+func (c *Client) dropPublicSchema() error {
+	_, err := c.db.Exec(fmt.Sprintf("drop schema public cascade"))
+	return err
+}
+
+func (c *Client) CreateDatabase(name string, owner *string) error {
 
 	databases, err := c.Databases()
 
@@ -126,7 +131,17 @@ func (c *Client) CreateDatabase(name string) error {
 		return nil
 	}
 
-	_, err = c.db.Exec(fmt.Sprintf("CREATE DATABASE %s OWNER=%s", name, c.user))
+	if owner != nil {
+		_, err = c.db.Exec(fmt.Sprintf("CREATE DATABASE %s WITH OWNER=%s", name, owner))
+	} else {
+		_, err = c.db.Exec(fmt.Sprintf("CREATE DATABASE %s", name))
+	}
+
+	if err != nil {
+		return err
+	}
+
+	_, err = c.db.Exec(fmt.Sprintf("drop schema public cascade"))
 
 	return err
 }

@@ -99,8 +99,7 @@ func Test_DbtDeveloper(t *testing.T) {
 
 	group := database.LookupGroup(data.dbtDeveloperRole.Name)
 	assert.NotNil(group, "a user group with the name of the role has been registered")
-	assert.Contains(group.Granted(),"bi", "group has been granted access to the bi schemas")
-	assert.Contains(group.Granted(),"lwgoevents", "group has been granted access to the lwgoevents schema")
+	assert.Equal(dbUsername, *database.Owner, "developer is the owner of the dev database")
 
 	dbUser := database.LookupUser(dbUsername)
 	assert.NotNil(dbUser, "a user name of the role and user has been registered")

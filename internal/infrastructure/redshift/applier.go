@@ -260,8 +260,20 @@ func (applier *Applier) applyDatabase(database *redshiftCore.Database) error {
 		return err
 	}
 
-	applier.eventListener.handle(EnsureDatabaseExists, database.Name)
-	return client.CreateDatabase(database.Name)
+	applier.eventListener.Handle(EnsureDatabaseExists, database.Name)
+	err = client.CreateDatabase(database.Name, database.Owner)
+	//for some stupid reason the owner of the database is not owner of the public schema so we drop it so that the user can create it himself
+	if database.Owner != nil {
+		client, err = applier.clientGroup.ForDatabase(database)
+
+		if err != nil {
+			return err
+		}
+
+		return client.dropPublicSchema()
+	} else {
+		return err
+	}
 }
 
 func (applier *Applier) Apply(model redshiftCore.Model) error {

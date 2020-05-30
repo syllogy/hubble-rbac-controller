@@ -47,7 +47,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				//Allow user/role to log into the database
 				databaseLoginPolicyForUserAndRole.Allow(clusterIdentifier, dbName)
 
-				database := model.RedshiftModel.DeclareDatabase(clusterIdentifier, dbName)
+				database := model.RedshiftModel.DeclareDatabase(db.ClusterIdentifier, db.Name, nil)
 
 				//Set needed grants on the user group
 				group := database.DeclareGroup(role.Name)
@@ -70,6 +70,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 			for _,db := range role.GrantedDatabases {
 				setupDatabase(db.ClusterIdentifier, db.Name)
 			}
+				database := model.RedshiftModel.DeclareDatabase(db.ClusterIdentifier, user.Username, &userAndRoleUsername)
 
 			for _,db := range role.GrantedDevDatabases {
 				setupDatabase(db.ClusterIdentifier, user.Username)
