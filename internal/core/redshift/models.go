@@ -1,6 +1,9 @@
 package redshift
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Group struct {
 	Name string
@@ -35,7 +38,7 @@ type Model struct {
 
 func (m *Model) LookupDatabase(clusterIdentifier string, name string) *Database {
 	for _,db := range m.Databases {
-		if db.ClusterIdentifier == clusterIdentifier && db.Name == name {
+		if db.ClusterIdentifier == clusterIdentifier && db.Name == strings.ToLower(name) {
 			return db
 		}
 	}
@@ -48,14 +51,14 @@ func (m *Model) DeclareDatabase(clusterIdentifier string, name string) *Database
 		return existing
 	}
 
-	newDatabase := &Database { ClusterIdentifier: clusterIdentifier, Name: name }
+	newDatabase := &Database { ClusterIdentifier: clusterIdentifier, Name: strings.ToLower(name), Owner: owner }
 	m.Databases = append(m.Databases, newDatabase)
 	return newDatabase
 }
 
 func (d *Database) LookupGroup(name string) *Group {
 	for _,group := range d.Groups {
-		if group.Name == name {
+		if group.Name == strings.ToLower(name) {
 			return group
 		}
 	}
@@ -68,14 +71,14 @@ func (d *Database) DeclareGroup(name string) *Group {
 		return existing
 	}
 
-	newGroup := &Group { Name: name }
+	newGroup := &Group { Name: strings.ToLower(name) }
 	d.Groups = append(d.Groups, newGroup)
 	return newGroup
 }
 
 func (d *Database) LookupUser(name string) *User {
 	for _, user := range d.Users {
-		if user.Name == name {
+		if user.Name == strings.ToLower(name) {
 			return user
 		}
 	}
@@ -88,7 +91,7 @@ func (d *Database) DeclareUser(name string, of *Group) *User {
 		return existing
 	}
 
-	newUser := &User { Name: name, Of: of }
+	newUser := &User { Name: strings.ToLower(name), Of: of }
 	d.Users = append(d.Users, newUser)
 	return newUser
 }
@@ -109,17 +112,17 @@ func (g *Group) GrantExternalSchema(schema *ExternalSchema) {
 func (g *Group) Granted() []string {
 	schemas := make([]string, 0, len(g.GrantedSchemas) + len(g.GrantedExternalSchemas))
 	for _, schema := range g.GrantedSchemas {
-		schemas = append(schemas, schema.Name)
+		schemas = append(schemas, strings.ToLower(schema.Name))
 	}
 	for _, schema := range g.GrantedExternalSchemas {
-		schemas = append(schemas, schema.Name)
+		schemas = append(schemas, strings.ToLower(schema.Name))
 	}
 	return schemas
 }
 
 func (g *Group) LookupGrantedSchema(name string) *Schema {
 	for _, schema := range g.GrantedSchemas {
-		if schema.Name == name {
+		if schema.Name == strings.ToLower(name) {
 			return schema
 		}
 	}
@@ -128,7 +131,7 @@ func (g *Group) LookupGrantedSchema(name string) *Schema {
 
 func (g *Group) LookupGrantedExternalSchema(name string) *ExternalSchema {
 	for _, schema := range g.GrantedExternalSchemas {
-		if schema.Name  == name {
+		if schema.Name  == strings.ToLower(name) {
 			return schema
 		}
 	}
