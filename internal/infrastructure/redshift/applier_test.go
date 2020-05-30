@@ -15,7 +15,7 @@ type EventRecorder struct {
 	events []ApplyEventType
 }
 
-func (e *EventRecorder) handle(eventType ApplyEventType, name string) {
+func (e *EventRecorder) Handle(eventType ApplyEventType, name string) {
 	log.Infof("Event %s:%s occurred", eventType.ToString(), name)
 	e.events = append(e.events, eventType)
 }
@@ -45,13 +45,19 @@ func init() {
 	log.SetLevel(log.InfoLevel)
 
 	localhostCredentials = ClusterCredentials{
-		username: "lunarway",
-		password: "lunarway",
-		masterDatabase: "lunarway",
-		host:     "localhost",
-		sslmode:  "disable",
-		port:     5432,
-		externalSchemasSupported: false,
+		Username:                 "lunarway",
+		Password:                 "lunarway",
+		MasterDatabase:           "lunarway",
+		Host:                     "localhost",
+		Sslmode:                  "disable",
+		Port:                     5432,
+		ExternalSchemasSupported: false,
+	}
+}
+
+func failOnError(err error) {
+	if err != nil {
+		panic(err)
 	}
 }
 
@@ -116,7 +122,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	assert.NoError(err)
 
 	redshiftClient, err := clientGroup.ForDatabase(database)
-	assert.NoError(err)
+	failOnError(err)
 
 	assertDatabase(assert, redshiftClient, DatabaseContents{
 		users:            []string{"lunarway","jwr_bianalyst"},
