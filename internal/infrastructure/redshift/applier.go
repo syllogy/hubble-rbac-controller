@@ -262,18 +262,22 @@ func (applier *Applier) applyDatabase(database *redshiftCore.Database) error {
 	applier.eventListener.Handle(EnsureDatabaseExists, database.Name)
 	err = client.CreateDatabase(database.Name, database.Owner)
 
+	if err != nil {
+		return err
+	}
+
+	client, err = applier.clientGroup.ForDatabase(database)
+
+	if err != nil {
+		return err
+	}
+
 	for _, schema := range database.ExternalSchemas {
 		client.CreateExternalSchema(schema.Name, schema.GlueDatabaseName, applier.awsAccountId)
 	}
 
 	//for some stupid reason the owner of the database is not owner of the public schema so we drop it so that the user can create it himself
 	if database.Owner != nil {
-		client, err = applier.clientGroup.ForDatabase(database)
-
-		if err != nil {
-			return err
-		}
-
 		return client.dropPublicSchema()
 	} else {
 		return err
