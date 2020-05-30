@@ -31,6 +31,7 @@ type Database struct {
 	Owner *string
 	Users []*User
 	Groups []*Group
+	ExternalSchemas []*ExternalSchema
 }
 
 type Model struct {
@@ -86,6 +87,16 @@ func (d *Database) LookupUser(name string) *User {
 	return nil
 }
 
+func (d *Database) LookupExternalSchema(name string) *ExternalSchema {
+	for _, user := range d.ExternalSchemas {
+		if user.Name == strings.ToLower(name) {
+			return user
+		}
+	}
+	return nil
+}
+
+
 func (d *Database) DeclareUser(name string, of *Group) *User {
 	existing := d.LookupUser(name)
 	if existing != nil {
@@ -96,6 +107,18 @@ func (d *Database) DeclareUser(name string, of *Group) *User {
 	d.Users = append(d.Users, newUser)
 	return newUser
 }
+
+func (d *Database) DeclareExternalSchema(name string, glueDatabaseName string) *ExternalSchema {
+	existing := d.LookupExternalSchema(name)
+	if existing != nil {
+		return existing
+	}
+
+	externalSchema := &ExternalSchema { Name: strings.ToLower(name), GlueDatabaseName: glueDatabaseName }
+	d.ExternalSchemas = append(d.ExternalSchemas, externalSchema)
+	return externalSchema
+}
+
 
 func (d *Database) Identifier() string {
 	return fmt.Sprintf("%s/%s", d.ClusterIdentifier, d.Name)

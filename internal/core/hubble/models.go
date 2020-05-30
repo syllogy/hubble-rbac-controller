@@ -5,10 +5,12 @@ type DataSet string
 type Database struct {
 	ClusterIdentifier string
 	Name string
+	GlueDatabases []GlueDatabase
 }
 
 type DevDatabase struct {
 	ClusterIdentifier string
+	GlueDatabases []GlueDatabase
 }
 
 type GlueDatabase struct {

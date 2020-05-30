@@ -20,19 +20,22 @@ type TestData struct {
 
 func generateTestData() TestData {
 
-	unstable := hubble.Database{
-		ClusterIdentifier: "hubble-unstable",
-		Name:              "prod",
-	}
-
-	dev := hubble.DevDatabase{
-		ClusterIdentifier: "hubble",
-	}
-
 	lwgoeventsDatabase := hubble.GlueDatabase{
 		ShortName: "lwgoevents",
 		Name:      "lw-go-events",
 	}
+
+	unstable := hubble.Database{
+		ClusterIdentifier: "hubble-unstable",
+		Name:              "prod",
+		GlueDatabases: []hubble.GlueDatabase{lwgoeventsDatabase},
+	}
+
+	dev := hubble.DevDatabase{
+		ClusterIdentifier: "hubble",
+		GlueDatabases: []hubble.GlueDatabase{lwgoeventsDatabase},
+	}
+
 
 	biAnalystRole := hubble.Role{
 		Name:"bi_analyst",
@@ -46,7 +49,7 @@ func generateTestData() TestData {
 		Name:"dbt_developer",
 		GrantedDatabases:[]hubble.Database{},
 		GrantedDevDatabases:[]hubble.DevDatabase{dev},
-		GrantedGlueDatabases:[]hubble.GlueDatabase{lwgoeventsDatabase},
+		GrantedGlueDatabases:[]hubble.GlueDatabase{},
 		Acl:[]hubble.DataSet{"bi", "core"},
 	}
 
