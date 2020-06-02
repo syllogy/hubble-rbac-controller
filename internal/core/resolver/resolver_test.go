@@ -9,13 +9,14 @@ import (
 )
 
 type TestData struct {
-	unstable         hubble.Database
-	dev              hubble.DevDatabase
-	biAnalystRole    hubble.Role
-	dbtDeveloperRole hubble.Role
-	biAnalyst        hubble.User
-	dbtDeveloper        hubble.User
-	lwgoeventsDatabase hubble.GlueDatabase
+	unstable                     hubble.Database
+	dev                          hubble.DevDatabase
+	biAnalystRole                hubble.Role
+	dbtDeveloperRole             hubble.Role
+	biAnalyst                    hubble.User
+	dbtDeveloper                 hubble.User
+	lwgoeventsDatabase           hubble.GlueDatabase
+	allowAccessToTmpBucketPolicy hubble.PolicyReference
 }
 
 func generateTestData() TestData {
@@ -28,14 +29,13 @@ func generateTestData() TestData {
 	unstable := hubble.Database{
 		ClusterIdentifier: "hubble-unstable",
 		Name:              "prod",
-		GlueDatabases: []hubble.GlueDatabase{lwgoeventsDatabase},
 	}
 
 	dev := hubble.DevDatabase{
 		ClusterIdentifier: "hubble",
-		GlueDatabases: []hubble.GlueDatabase{lwgoeventsDatabase},
 	}
 
+	allowAccessToTmpBucketPolicy := hubble.PolicyReference{Arn: "arn:aws:iam::478824949770:allowAccessToTmpBucketPolicy/access-to-tmp-bucket"}
 
 	biAnalystRole := hubble.Role{
 		Name:"bi_analyst",
@@ -51,6 +51,7 @@ func generateTestData() TestData {
 		GrantedDevDatabases:[]hubble.DevDatabase{dev},
 		GrantedGlueDatabases:[]hubble.GlueDatabase{},
 		Acl:[]hubble.DataSet{"bi", "core"},
+		Policies: []hubble.PolicyReference{allowAccessToTmpBucketPolicy},
 	}
 
 	biAnalyst := hubble.User{
@@ -65,14 +66,16 @@ func generateTestData() TestData {
 		AssignedTo:[]hubble.Role{dbtDeveloperRole},
 	}
 
+
 	return TestData{
-		unstable:         unstable,
-		dev:              dev,
-		biAnalystRole:    biAnalystRole,
-		dbtDeveloperRole: dbtDeveloperRole,
-		biAnalyst:        biAnalyst,
-		dbtDeveloper:dbtDeveloper,
-		lwgoeventsDatabase:lwgoeventsDatabase,
+		unstable:                     unstable,
+		dev:                          dev,
+		biAnalystRole:                biAnalystRole,
+		dbtDeveloperRole:             dbtDeveloperRole,
+		biAnalyst:                    biAnalyst,
+		dbtDeveloper:                 dbtDeveloper,
+		lwgoeventsDatabase:           lwgoeventsDatabase,
+		allowAccessToTmpBucketPolicy: allowAccessToTmpBucketPolicy,
 	}
 }
 
@@ -88,6 +91,7 @@ func Test_DbtDeveloper(t *testing.T) {
 		GlueDatabases: []hubble.GlueDatabase{data.lwgoeventsDatabase},
 		Users:         []hubble.User{data.dbtDeveloper},
 		Roles:         []hubble.Role{data.dbtDeveloperRole},
+		Policies: []hubble.PolicyReference{data.allowAccessToTmpBucketPolicy},
 	}
 
 	resolver := Resolver{}
@@ -114,12 +118,17 @@ func Test_DbtDeveloper(t *testing.T) {
 	role := resolved.IamModel.LookupRole(data.dbtDeveloperRole.Name)
 	assert.NotNil(role, "AWS role for the role has been created")
 
+	referencedPolicy := role.LookupReferencedPolicy(data.allowAccessToTmpBucketPolicy.Arn)
+	assert.NotNil(referencedPolicy)
+	assert.Equal(data.allowAccessToTmpBucketPolicy.Arn, referencedPolicy.Arn)
+
 	policy := role.LookupDatabaseLoginPolicyForUser(data.dbtDeveloper.Email)
 	assert.NotNil(policy, "policy has been registered for the user")
 	assert.Equal(dbUsername, policy.DatabaseUsername, "policy uses the correct username")
 
 	access := policy.LookupDatabase(data.dev.ClusterIdentifier, data.dbtDeveloper.Username)
 	assert.NotNil(access, "access has been granted for the user to the dev/[username] database")
+
 }
 
 func Test_BiAnalyst(t *testing.T) {

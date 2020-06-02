@@ -167,6 +167,27 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 		return fmt.Errorf("Unable to list attached policies: %w", err)
 	}
 
+	for _,desiredPolicy := range desiredRole.Policies {
+		attachedPolicy := applier.client.lookupAttachedPolicyByArn(attachedPolicies, desiredPolicy.Arn)
+		if attachedPolicy == nil {
+			policy, err := applier.client.lookupPolicyByArn(desiredPolicy.Arn)
+
+			if err != nil {
+				return fmt.Errorf("Unable to fetch policy: %w", err)
+			}
+
+			if policy == nil {
+				return fmt.Errorf("Referenced policy with Arn %s does not exist", desiredPolicy.Arn)
+			}
+
+			err = applier.client.attachPolicy(currentRole, policy)
+
+			if err != nil {
+				return fmt.Errorf("Failed attaching policy %s: %w", desiredPolicy.Arn, err)
+			}
+		}
+	}
+
 	for _, desiredPolicy := range desiredRole.DatabaseLoginPolicies {
 
 		desiredPolicyDocument := applier.buildDatabaseLoginPolicyDocument(desiredPolicy)

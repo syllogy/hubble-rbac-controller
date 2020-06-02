@@ -86,6 +86,10 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 					group.GrantExternalSchema(&schema)
 				}
 			}
+
+			for _,policy := range role.Policies {
+				iamRole.DeclareReferencedPolicy(policy.Arn)
+			}
 		}
 	}
 

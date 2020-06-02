@@ -28,6 +28,7 @@ type Role struct {
 	GrantedDevDatabases []DevDatabase
 	GrantedGlueDatabases []GlueDatabase
 	Acl []DataSet
+	Policies []PolicyReference
 }
 
 type Model struct {
@@ -36,4 +37,11 @@ type Model struct {
 	GlueDatabases []GlueDatabase
 	Users []User
 	Roles []Role
+	Policies []PolicyReference
+}
+
+type PolicyReference struct {
+	Arn string
+}
+
 }

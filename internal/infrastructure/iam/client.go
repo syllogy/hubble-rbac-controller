@@ -44,6 +44,15 @@ func (client *Client) lookupAttachedPolicy(policies []*iam.AttachedPolicy, name 
 	return nil
 }
 
+func (client *Client) lookupAttachedPolicyByArn(policies []*iam.AttachedPolicy, arn string) *iam.AttachedPolicy {
+	for _,r := range policies {
+		if *r.PolicyArn == arn {
+			return r
+		}
+	}
+	return nil
+}
+
 func (client *Client) lookupRole(roles []*iam.Role, name string) *iam.Role {
 	for _,r := range roles {
 		if *r.RoleName == name {
@@ -131,6 +140,21 @@ func (client *Client) GetPolicy(policy *iam.AttachedPolicy) (*iam.Policy, error)
 
 	response, err := c.GetPolicy(&iam.GetPolicyInput{
 		PolicyArn: policy.PolicyArn,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return response.Policy, nil
+}
+
+func (client *Client) lookupPolicyByArn(arn string) (*iam.Policy, error) {
+
+	c := iam.New(client.session)
+
+	response, err := c.GetPolicy(&iam.GetPolicyInput{
+		PolicyArn: aws.String(arn),
 	})
 
 	if err != nil {

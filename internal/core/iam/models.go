@@ -11,9 +11,14 @@ type Database struct {
 	Name              string
 }
 
+type PolicyReference struct {
+	Arn string
+}
+
 type AwsRole struct {
 	Name                  string
 	DatabaseLoginPolicies []*DatabaseLoginPolicy
+	Policies []*PolicyReference
 }
 
 type Model struct {
@@ -68,6 +73,26 @@ func (r *AwsRole) DeclareDatabaseLoginPolicyForUser(email string, username strin
 	newPolicy := &DatabaseLoginPolicy{ Email: email, DatabaseUsername:username}
 	r.DatabaseLoginPolicies = append(r.DatabaseLoginPolicies, newPolicy)
 	return newPolicy
+}
+
+func (r *AwsRole) DeclareReferencedPolicy(arn string) *PolicyReference {
+	existing := r.LookupReferencedPolicy(arn)
+	if existing != nil {
+		return existing
+	}
+
+	newPolicy := &PolicyReference{ Arn: arn}
+	r.Policies = append(r.Policies, newPolicy)
+	return newPolicy
+}
+
+func (r *AwsRole) LookupReferencedPolicy(arn string) *PolicyReference {
+	for _,p := range r.Policies {
+		if p.Arn == arn {
+			return p
+		}
+	}
+	return nil
 }
 
 func (m *Model) LookupRole(name string) *AwsRole {
