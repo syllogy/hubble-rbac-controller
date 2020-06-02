@@ -31,6 +31,16 @@ func (e *EventRecorder) count(eventType ApplyEventType) int {
 	return result
 }
 
+func (e *EventRecorder) Reset() {
+	e.events = []ApplyEventType{}
+}
+
+type TestContext struct {
+	applier *Applier
+	client *Client
+	eventRecorder *EventRecorder
+}
+
 const accountId = "478824949770"
 const region = "eu-west-1"
 
@@ -45,10 +55,12 @@ func init() {
 	log.SetLevel(log.InfoLevel)
 }
 
-func setUp() {
+func setUp() TestContext {
+
 	session := LocalStackSessionFactory{}.CreateSession()
 	iamClient := New(session)
-	applier := NewApplier(iamClient, accountId, region, &EventRecorder{})
+	eventRecorder := EventRecorder{}
+	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
 
 	roles, err := iamClient.ListRoles()
 	failOnError(err)
@@ -65,45 +77,43 @@ func setUp() {
 		err = iamClient.DeletePolicy(policy)
 		failOnError(err)
 	}
+
+	eventRecorder.Reset()
+
+	return TestContext{
+		applier: applier,
+		client:  iamClient,
+		eventRecorder: &eventRecorder,
+	}
 }
 
 func TestApplier_NoRoles(t *testing.T) {
 
-	setUp()
+	context := setUp()
 
 	assert := assert.New(t)
 
-	eventRecorder := EventRecorder{}
-	session := LocalStackSessionFactory{}.CreateSession()
-	iamClient := New(session)
-	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
-
-	err := applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{}})
+	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{}})
 	assert.NoError(err)
 
-	roles, err := iamClient.ListRoles()
+	roles, err := context.client.ListRoles()
 	failOnError(err)
 	assert.Empty(roles)
 
-	policies, err := iamClient.ListPolicies()
+	policies, err := context.client.ListPolicies()
 	failOnError(err)
 	assert.Empty(policies)
 
-	assert.Equal(0, len(eventRecorder.events))
+	assert.Equal(0, len(context.eventRecorder.events))
 }
 
 func TestApplier_SingleRole(t *testing.T) {
 
-	setUp()
+	context := setUp()
 
 	assert := assert.New(t)
 
-	eventRecorder := EventRecorder{}
-	session := LocalStackSessionFactory{}.CreateSession()
-	iamClient := New(session)
-	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
-
-	err := applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
 		{
 			Name:                  "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
@@ -123,30 +133,25 @@ func TestApplier_SingleRole(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := iamClient.ListRoles()
+	roles, err := context.client.ListRoles()
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	policies, err := iamClient.ListPolicies()
+	policies, err := context.client.ListPolicies()
 	failOnError(err)
 	assert.Equal(1, len(policies))
 
-	assert.Equal(1, eventRecorder.count(RoleCreated))
-	assert.Equal(1, eventRecorder.count(PolicyCreated))
+	assert.Equal(1, context.eventRecorder.count(RoleCreated))
+	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
 }
 
 func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 
-	setUp()
+	context := setUp()
 
 	assert := assert.New(t)
 
-	eventRecorder := EventRecorder{}
-	session := LocalStackSessionFactory{}.CreateSession()
-	iamClient := New(session)
-	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
-
-	err := applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
 		{
 			Name:                  "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
@@ -170,30 +175,25 @@ func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := iamClient.ListRoles()
+	roles, err := context.client.ListRoles()
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	policies, err := iamClient.ListPolicies()
+	policies, err := context.client.ListPolicies()
 	failOnError(err)
 	assert.Equal(1, len(policies))
 
-	assert.Equal(1, eventRecorder.count(RoleCreated))
-	assert.Equal(1, eventRecorder.count(PolicyCreated))
+	assert.Equal(1, context.eventRecorder.count(RoleCreated))
+	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
 }
 
 func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 
-	setUp()
+	context := setUp()
 
 	assert := assert.New(t)
 
-	eventRecorder := EventRecorder{}
-	session := LocalStackSessionFactory{}.CreateSession()
-	iamClient := New(session)
-	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
-
-	err := applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
 		{
 			Name:                  "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
@@ -223,31 +223,26 @@ func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := iamClient.ListRoles()
+	roles, err := context.client.ListRoles()
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	policies, err := iamClient.ListPolicies()
+	policies, err := context.client.ListPolicies()
 	failOnError(err)
 	assert.Equal(2, len(policies))
 
-	assert.Equal(1, eventRecorder.count(RoleCreated))
-	assert.Equal(2, eventRecorder.count(PolicyCreated))
+	assert.Equal(1, context.eventRecorder.count(RoleCreated))
+	assert.Equal(2, context.eventRecorder.count(PolicyCreated))
 }
 
 
 func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
-	setUp()
+	context := setUp()
 
 	assert := assert.New(t)
 
-	eventRecorder := EventRecorder{}
-	session := LocalStackSessionFactory{}.CreateSession()
-	iamClient := New(session)
-	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
-
-	err := applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
 		{
 			Name:                  "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
@@ -267,7 +262,7 @@ func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
 	assert.NoError(err)
 
-	err = applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
 		{
 			Name:                  "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
@@ -291,15 +286,165 @@ func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := iamClient.ListRoles()
+	roles, err := context.client.ListRoles()
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	policies, err := iamClient.ListPolicies()
+	policies, err := context.client.ListPolicies()
 	failOnError(err)
 	assert.Equal(1, len(policies))
 
-	assert.Equal(1, eventRecorder.count(RoleCreated))
-	assert.Equal(1, eventRecorder.count(PolicyCreated))
-	assert.Equal(1, eventRecorder.count(PolicyUpdated))
+	assert.Equal(1, context.eventRecorder.count(RoleCreated))
+	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
+	assert.Equal(1, context.eventRecorder.count(PolicyUpdated))
 }
+
+func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
+
+	context := setUp()
+
+	assert := assert.New(t)
+
+	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+		{
+			Name:                  "BiAnalyst",
+			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
+				{
+					Email:            "jwr@lunar.app",
+					DatabaseUsername: "jwr_bianalyst",
+					Databases:        []*iamCore.Database{
+						{
+							ClusterIdentifier: "dev",
+							Name:              "jwr",
+						},
+					},
+				},
+			},
+		},
+	}})
+
+	failOnError(err)
+
+	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+		{
+			Name:                  "BiAnalyst",
+			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{},
+			},
+	}})
+	failOnError(err)
+
+	policies, err := context.client.ListPolicies()
+	failOnError(err)
+	assert.Equal(0, len(policies))
+
+
+}
+
+func TestApplier_RoleWithNoUsers(t *testing.T) {
+
+	context := setUp()
+
+	assert := assert.New(t)
+
+	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+		{
+			Name:                  "BiAnalyst",
+			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{},
+		},
+	}})
+	assert.NoError(err)
+
+	policies, err := context.client.ListPolicies()
+	failOnError(err)
+	assert.Equal(0, len(policies))
+}
+
+
+func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
+	context := setUp()
+
+	assert := assert.New(t)
+
+	policyDocument := `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::lunarway-prod-data-tmp/*"
+            ]
+        }
+    ]
+}
+`
+	_, err := context.client.createOrUpdatePolicy("access-to-tmp-bucket", policyDocument)
+	failOnError(err)
+
+	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+		{
+			Name:                  "BiAnalyst",
+			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
+				{
+					Email:            "jwr@lunar.app",
+					DatabaseUsername: "jwr_bianalyst",
+					Databases:        []*iamCore.Database{
+						{
+							ClusterIdentifier: "dev",
+							Name:              "jwr",
+						},
+					},
+				},
+			},
+			Policies: []*iamCore.PolicyReference{{Arn:"arn:aws:iam::000000000000:policy/hubble-rbac/access-to-tmp-bucket"}},
+		},
+	}})
+
+	assert.NoError(err)
+
+	roles, err := context.client.ListRoles()
+	failOnError(err)
+	assert.Equal(1, len(roles))
+
+	attachedPolicies, err := context.client.ListAttachedPolicies(roles[0])
+	failOnError(err)
+
+	assert.Equal(2, len(attachedPolicies), "referenced policy has been added to the role")
+
+	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+		{
+			Name:                  "BiAnalyst",
+			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
+				{
+					Email:            "jwr@lunar.app",
+					DatabaseUsername: "jwr_bianalyst",
+					Databases:        []*iamCore.Database{
+						{
+							ClusterIdentifier: "dev",
+							Name:              "jwr",
+						},
+					},
+				},
+			},
+			Policies: []*iamCore.PolicyReference{},
+		},
+	}})
+	assert.NoError(err)
+
+	roles, err = context.client.ListRoles()
+	failOnError(err)
+	assert.Equal(1, len(roles))
+
+	attachedPolicies, err = context.client.ListAttachedPolicies(roles[0])
+	failOnError(err)
+
+	assert.Equal(1, len(attachedPolicies), "referenced policy has been removed")
+
+}
+
