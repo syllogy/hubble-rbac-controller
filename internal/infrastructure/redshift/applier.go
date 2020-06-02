@@ -193,23 +193,6 @@ func (applier *Applier) applyUsers(database *redshiftCore.Database) error {
 		return fmt.Errorf("No client for database %s: %w", database.Identifier(), err)
 	}
 
-	users, err := client.Users()
-
-	if err != nil {
-		return fmt.Errorf("Unable to list users for database %s: %w", database.Identifier(), err)
-	}
-
-	for _, username := range users {
-		if applier.isUserManaged(username) && database.LookupUser(username) == nil {
-			err = client.DeleteUser(username)
-			applier.eventListener.Handle(EnsureUserDeleted, username)
-
-			if err != nil {
-				return fmt.Errorf("Unable to delete user %s in %s: %w", username, database.Identifier(), err)
-			}
-		}
-	}
-
 	for _,user := range database.Users {
 
 		if !applier.isUserManaged(user.Name) {
@@ -253,7 +236,7 @@ func (applier *Applier) applyUsers(database *redshiftCore.Database) error {
 
 func (applier *Applier) applyDatabase(database *redshiftCore.Database) error {
 
-	client, err := applier.clientGroup.MasterDatabase(database)
+	client, err := applier.clientGroup.MasterDatabase(database.ClusterIdentifier)
 
 	if err != nil {
 		return err
@@ -281,7 +264,41 @@ func (applier *Applier) applyDatabase(database *redshiftCore.Database) error {
 	return err
 }
 
+func (applier *Applier) deleteUnmanagedUsers(model redshiftCore.Model, clusterIdentifier string) error {
+
+	client, err := applier.clientGroup.MasterDatabase(clusterIdentifier)
+
+	if err != nil {
+		return fmt.Errorf("No client for cluster %s: %w", clusterIdentifier, err)
+	}
+
+	usernames, err := client.Users()
+
+	if err != nil {
+		return fmt.Errorf("Unable to list usernames for cluster %s: %w", clusterIdentifier, err)
+	}
+
+	for _, username := range usernames {
+		if applier.isUserManaged(username) && !model.LookupUser(clusterIdentifier, username) {
+			err = client.DeleteUser(username)
+			applier.eventListener.Handle(EnsureUserDeleted, username)
+
+			if err != nil {
+				return fmt.Errorf("Unable to delete user %s in %s: %w", username, clusterIdentifier, err)
+			}
+		}
+	}
+	return nil
+}
+
 func (applier *Applier) Apply(model redshiftCore.Model) error {
+
+	for _, clusterIdentifier := range model.ClusterIdentifiers() {
+		err := applier.deleteUnmanagedUsers(model, clusterIdentifier)
+		if err != nil {
+			return err
+		}
+	}
 
 	for _, database := range model.Databases {
 

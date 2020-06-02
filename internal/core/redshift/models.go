@@ -37,6 +37,33 @@ type Model struct {
 	Databases []*Database
 }
 
+func (m *Model) ClusterIdentifiers() []string {
+	set := make(map[string]bool)
+	for _,database := range m.Databases {
+		set[database.ClusterIdentifier] = true
+	}
+
+	var result []string
+
+	for identifier,_ := range set {
+		result = append(result, identifier)
+	}
+	return result
+}
+
+func (m *Model) LookupUser(clusterIdentifier string, username string) bool {
+	for _,database := range m.Databases {
+		if database.ClusterIdentifier == clusterIdentifier {
+			for _,user := range database.Users {
+				if user.Name == username {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func (m *Model) LookupDatabase(clusterIdentifier string, name string) *Database {
 	for _,db := range m.Databases {
 		if db.ClusterIdentifier == clusterIdentifier && db.Name == strings.ToLower(name) {

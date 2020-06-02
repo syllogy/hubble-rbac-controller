@@ -35,12 +35,12 @@ func (cg ClientGroup) ForDatabase(database *redshift.Database) (*Client, error) 
 	return NewClient(credentials.Username, credentials.Password, credentials.Host, database.Name, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
 
-func (cg ClientGroup) MasterDatabase(database *redshift.Database) (*Client, error) {
+func (cg ClientGroup) MasterDatabase(clusterIdentifier string) (*Client, error) {
 
-	credentials, ok := cg.credentials[database.ClusterIdentifier]
+	credentials, ok := cg.credentials[clusterIdentifier]
 
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("Unknown cluster with identifier %s", database.ClusterIdentifier))
+		return nil, errors.New(fmt.Sprintf("Unknown cluster with identifier %s", clusterIdentifier))
 	}
 
 	return NewClient(credentials.Username, credentials.Password, credentials.Host, credentials.MasterDatabase, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
