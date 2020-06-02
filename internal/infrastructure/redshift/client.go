@@ -117,11 +117,6 @@ func (c *Client) Databases() ([]string, error) {
 	return c.stringList("SELECT datname FROM pg_database")
 }
 
-func (c *Client) dropPublicSchema() error {
-	_, err := c.db.Exec(fmt.Sprintf("drop schema public cascade"))
-	return err
-}
-
 func (c *Client) CreateDatabase(name string, owner *string) error {
 
 	databases, err := c.Databases()
@@ -280,6 +275,11 @@ func (c *Client) CreateUser(username string) error {
 
 func (c *Client) DeleteUser(username string) error {
 	_, err := c.db.Exec(fmt.Sprintf("DROP USER IF EXISTS %s", username))
+	return err
+}
+
+func (c* Client) SetSchemaOwner(username string, schema string) error {
+	_, err := c.db.Exec(fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s", schema, username))
 	return err
 }
 

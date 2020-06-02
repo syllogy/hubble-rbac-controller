@@ -272,12 +272,13 @@ func (applier *Applier) applyDatabase(database *redshiftCore.Database) error {
 		return err
 	}
 
-	//for some stupid reason the owner of the database is not owner of the public schema so we drop it so that the user can create it himself
+	//for some reason the owner of the database is not owner of the public schema
 	if database.Owner != nil {
-		return client.dropPublicSchema()
+		return client.SetSchemaOwner(*database.Owner, "public")
 	} else {
 		return err
 	}
+	return err
 }
 
 func (applier *Applier) Apply(model redshiftCore.Model) error {
