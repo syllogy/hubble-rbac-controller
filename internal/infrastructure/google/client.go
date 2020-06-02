@@ -70,19 +70,19 @@ func (client *Client) update(userKey string, awsRoles AwsRoles) error {
 
 	x, err := client.service.Users.Get(userKey).Projection("full").Do()
 	if err != nil {
-		return fmt.Errorf("Unable to retrieve users: %w", err)
+		return fmt.Errorf("unable to retrieve users: %w", err)
 	}
 
 	jsonRaw, err := json.Marshal(awsRoles)
 	if err != nil {
-		return fmt.Errorf("Unable to marshal AwsRoles: %w", err)
+		return fmt.Errorf("unable to marshal AwsRoles: %w", err)
 	}
 
 	x.CustomSchemas["AWS"] = jsonRaw
 
 	_, err = client.service.Users.Update(userKey, x).Do()
 	if err != nil {
-		return fmt.Errorf("Unable to update user: %w", err)
+		return fmt.Errorf("unable to update user: %w", err)
 	}
 
 	return nil
@@ -119,7 +119,7 @@ func (client *Client) Users() ([]User, error) {
 	}
 
 	if len(response.Users) == 500 {
-		return nil, fmt.Errorf("Too many users, no more than 500 are supported")
+		return nil, fmt.Errorf("too many users, no more than 500 are supported")
 	}
 
 	var result []User

@@ -126,13 +126,13 @@ func (applier *Applier) detachAndDeletePolicy(role *iam.Role, attachedPolicy *ia
 	err := applier.client.detachPolicy(role, attachedPolicy)
 
 	if err != nil {
-		return fmt.Errorf("Failed detaching policy %s: %w", *attachedPolicy.PolicyName, err)
+		return fmt.Errorf("failed detaching policy %s: %w", *attachedPolicy.PolicyName, err)
 	}
 
 	err = applier.client.DeleteAttachedPolicy(attachedPolicy)
 
 	if err != nil {
-		return fmt.Errorf("Failed deleting policy %s: %w", *attachedPolicy.PolicyName, err)
+		return fmt.Errorf("failed deleting policy %s: %w", *attachedPolicy.PolicyName, err)
 	}
 
 	return nil
@@ -143,13 +143,13 @@ func (applier *Applier) createAndAttachPolicy(role *iam.Role, name string, docum
 	policy, err := applier.client.createOrUpdatePolicy(name, document)
 
 	if err != nil {
-		return fmt.Errorf("Failed creating policy %s: %w", name, err)
+		return fmt.Errorf("failed creating policy %s: %w", name, err)
 	}
 
 	err = applier.client.attachPolicy(role, policy)
 
 	if err != nil {
-		return fmt.Errorf("Failed attaching policy %s: %w", name, err)
+		return fmt.Errorf("failed attaching policy %s: %w", name, err)
 	}
 
 	return nil
@@ -164,7 +164,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 	attachedPolicies, err := applier.client.ListAttachedPolicies(currentRole)
 
 	if err != nil {
-		return fmt.Errorf("Unable to list attached policies: %w", err)
+		return fmt.Errorf("unable to list attached policies: %w", err)
 	}
 
 	for _,desiredPolicy := range desiredRole.Policies {
@@ -173,17 +173,17 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 			policy, err := applier.client.lookupPolicyByArn(desiredPolicy.Arn)
 
 			if err != nil {
-				return fmt.Errorf("Unable to fetch policy: %w", err)
+				return fmt.Errorf("unable to fetch policy: %w", err)
 			}
 
 			if policy == nil {
-				return fmt.Errorf("Referenced policy with Arn %s does not exist", desiredPolicy.Arn)
+				return fmt.Errorf("referenced policy with Arn %s does not exist", desiredPolicy.Arn)
 			}
 
 			err = applier.client.attachPolicy(currentRole, policy)
 
 			if err != nil {
-				return fmt.Errorf("Failed attaching policy %s: %w", desiredPolicy.Arn, err)
+				return fmt.Errorf("failed attaching policy %s: %w", desiredPolicy.Arn, err)
 			}
 		}
 	}
@@ -203,12 +203,12 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 
 				err := applier.detachAndDeletePolicy(currentRole, attachedPolicy)
 				if err != nil {
-					return fmt.Errorf("Unable to detach and delete policy %s: %w", *attachedPolicy.PolicyName, err)
+					return fmt.Errorf("unable to detach and delete policy %s: %w", *attachedPolicy.PolicyName, err)
 				}
 
 				err = applier.createAndAttachPolicy(currentRole, policyName, desiredPolicyDocument)
 				if err != nil {
-					return fmt.Errorf("Unable to create and attach policy %s: %w", policyName, err)
+					return fmt.Errorf("unable to create and attach policy %s: %w", policyName, err)
 				}
 			}
 		} else {
@@ -217,7 +217,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 			err := applier.createAndAttachPolicy(currentRole, policyName, desiredPolicyDocument)
 
 			if err != nil {
-				return fmt.Errorf("Unable to create and attach policy %s: %w", policyName, err)
+				return fmt.Errorf("unable to create and attach policy %s: %w", policyName, err)
 			}
 		}
 	}
@@ -230,7 +230,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 			err = applier.detachAndDeletePolicy(currentRole, attachedPolicy)
 
 			if err != nil {
-				return fmt.Errorf("Unable to detach and delete policy %s: %w", *attachedPolicy.PolicyName, err)
+				return fmt.Errorf("unable to detach and delete policy %s: %w", *attachedPolicy.PolicyName, err)
 			}
 		}
 	}
@@ -265,13 +265,13 @@ func (applier *Applier) Apply(model iamCore.Model) error {
 	policyDocuments, err := applier.client.GetPolicyDocuments()
 
 	if err != nil {
-		return fmt.Errorf("Unable to list policy documents: %w", err)
+		return fmt.Errorf("unable to list policy documents: %w", err)
 	}
 
 	existingRoles, err := applier.client.ListRoles()
 
 	if err != nil {
-		return fmt.Errorf("Unable to list roles: %w", err)
+		return fmt.Errorf("unable to list roles: %w", err)
 	}
 
 	for _, desiredRole := range model.Roles {
@@ -285,7 +285,7 @@ func (applier *Applier) Apply(model iamCore.Model) error {
 			existingRole, err = applier.createRole(desiredRole.Name)
 
 			if err != nil {
-				return fmt.Errorf("Failed when creating role %s: %w", desiredRole.Name, err)
+				return fmt.Errorf("failed when creating role %s: %w", desiredRole.Name, err)
 			}
 		}
 
@@ -293,7 +293,7 @@ func (applier *Applier) Apply(model iamCore.Model) error {
 		log.Infof("Updating role %s", desiredRole.Name)
 		err = applier.updateRole(desiredRole, existingRole, policyDocuments)
 		if err != nil {
-			return fmt.Errorf("Failed when updating role %s: %w", desiredRole.Name, err)
+			return fmt.Errorf("failed when updating role %s: %w", desiredRole.Name, err)
 		}
 	}
 
@@ -304,7 +304,7 @@ func (applier *Applier) Apply(model iamCore.Model) error {
 			err = applier.deleteRole(existingRole)
 
 			if err != nil {
-				return fmt.Errorf("Failed when deleting role %s: %w", *existingRole.RoleName, err)
+				return fmt.Errorf("failed when deleting role %s: %w", *existingRole.RoleName, err)
 			}
 		}
 	}

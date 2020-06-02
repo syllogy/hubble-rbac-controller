@@ -21,7 +21,7 @@ func New(session *session.Session) *Client {
 
 func (client *Client) assertNotTruncated(truncated *bool) error {
 	if *truncated {
-		return fmt.Errorf("Internal error: Response was truncated, please increase page size or implement paging")
+		return fmt.Errorf("internal error: Response was truncated, please increase page size or implement paging")
 	}
 	return nil
 }
@@ -121,12 +121,12 @@ func (client *Client) ListAttachedPolicies(role *iam.Role) ([]*iam.AttachedPolic
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list attached policies for %s: %w", *role.RoleName, err)
+		return nil, fmt.Errorf("unable to list attached policies for %s: %w", *role.RoleName, err)
 	}
 	err = client.assertNotTruncated(response.IsTruncated)
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list attached policies for %s: %w", *role.RoleName, err)
+		return nil, fmt.Errorf("unable to list attached policies for %s: %w", *role.RoleName, err)
 	}
 
 	log.Debug(response.String())
@@ -205,7 +205,7 @@ func (client *Client) createOrUpdatePolicy(name string, document string) (*iam.P
 	policies, err := client.ListPolicies()
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list policies: %w", err)
+		return nil, fmt.Errorf("unable to list policies: %w", err)
 	}
 
 	policy := client.lookupPolicy(policies, name)
@@ -217,14 +217,14 @@ func (client *Client) createOrUpdatePolicy(name string, document string) (*iam.P
 	}
 
 	response, err := c.CreatePolicy(&iam.CreatePolicyInput{
-		Description:    aws.String("test"),
+		Description:    aws.String("Created by Hubble rbac controller"),
 		Path:           &iamPrefix,
 		PolicyDocument: &document,
 		PolicyName:     &name,
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create policy %s: %w", name, err)
+		return nil, fmt.Errorf("unable to create policy %s: %w", name, err)
 	}
 
 	return response.Policy, nil
@@ -237,7 +237,7 @@ func (client *Client) attachPolicy(role *iam.Role, policy *iam.Policy) error {
 	attachedPolicies, err := client.ListAttachedPolicies(role)
 
 	if err != nil {
-		return fmt.Errorf("Unable to list attached policies: %w", err)
+		return fmt.Errorf("unable to list attached policies: %w", err)
 	}
 
 	if client.lookupAttachedPolicy(attachedPolicies, *policy.PolicyName) == nil {
@@ -247,7 +247,7 @@ func (client *Client) attachPolicy(role *iam.Role, policy *iam.Policy) error {
 		})
 
 		if err != nil {
-			return fmt.Errorf("Unable to attach policy %s to role %s: %w", *policy.PolicyName, *role.RoleName, err)
+			return fmt.Errorf("unable to attach policy %s to role %s: %w", *policy.PolicyName, *role.RoleName, err)
 		}
 	}
 
@@ -261,7 +261,7 @@ func (client *Client) detachPolicy(role *iam.Role, policy *iam.AttachedPolicy) e
 	attachedPolicies, err := client.ListAttachedPolicies(role)
 
 	if err != nil {
-		return fmt.Errorf("Unable to list attached policies: %w", err)
+		return fmt.Errorf("unable to list attached policies: %w", err)
 	}
 
 	if client.lookupAttachedPolicy(attachedPolicies, *policy.PolicyName) != nil {
@@ -272,7 +272,7 @@ func (client *Client) detachPolicy(role *iam.Role, policy *iam.AttachedPolicy) e
 		})
 
 		if err != nil {
-			return fmt.Errorf("Unable to detach policy %s from role %s: %w", *policy.PolicyName, *role.RoleName, err)
+			return fmt.Errorf("unable to detach policy %s from role %s: %w", *policy.PolicyName, *role.RoleName, err)
 		}
 	}
 
@@ -285,7 +285,7 @@ func (client *Client) deletePolicy(name string, arn string) error {
 	policies, err := client.ListPolicies()
 
 	if err != nil {
-		return fmt.Errorf("Unable to list policies: %w", err)
+		return fmt.Errorf("unable to list policies: %w", err)
 	}
 
 	existing := client.lookupPolicy(policies, name)
@@ -298,7 +298,7 @@ func (client *Client) deletePolicy(name string, arn string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Unable to delete policy %s: %w", name, err)
+		return fmt.Errorf("unable to delete policy %s: %w", name, err)
 	}
 
 	return nil
@@ -319,14 +319,14 @@ func (client *Client) CreateOrUpdateLoginRole(name string) (*iam.Role, error) {
 	roles, err := client.ListRoles()
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to list roles: %w", err)
+		return nil, fmt.Errorf("unable to list roles: %w", err)
 	}
 
 	role := client.lookupRole(roles, name)
 	if role != nil {
 		err = client.DeleteLoginRole(role)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to delete login role %s: %w", name, err)
+			return nil, fmt.Errorf("unable to delete login role %s: %w", name, err)
 		}
 	}
 
@@ -361,7 +361,7 @@ func (client *Client) CreateOrUpdateLoginRole(name string) (*iam.Role, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create login role %s: %w", name, err)
+		return nil, fmt.Errorf("unable to create login role %s: %w", name, err)
 	}
 
 	log.Debug(response.String())
@@ -375,7 +375,7 @@ func (client *Client) DeleteLoginRole(role *iam.Role) error {
 	roles, err := client.ListRoles()
 
 	if err != nil {
-		return fmt.Errorf("Unable to list roles: %w", err)
+		return fmt.Errorf("unable to list roles: %w", err)
 	}
 
 	existing := client.lookupRole(roles, *role.RoleName)
@@ -386,7 +386,7 @@ func (client *Client) DeleteLoginRole(role *iam.Role) error {
 	_, err = c.DeleteRole(&iam.DeleteRoleInput{RoleName:role.RoleName})
 
 	if err != nil {
-		return fmt.Errorf("Unable to delete role %s: %w", *role.RoleName, err)
+		return fmt.Errorf("unable to delete role %s: %w", *role.RoleName, err)
 	}
 
 	return nil

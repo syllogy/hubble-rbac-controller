@@ -21,8 +21,8 @@ type ExternalSchema struct {
 }
 
 type User struct {
-	Name string
-	Of *Group
+	Name     string
+	MemberOf *Group
 }
 
 type Database struct {
@@ -128,7 +128,7 @@ func (d *Database) DeclareUser(name string, of *Group) *User {
 		return existing
 	}
 
-	newUser := &User { Name: strings.ToLower(name), Of: of }
+	newUser := &User { Name: strings.ToLower(name), MemberOf: of }
 	d.Users = append(d.Users, newUser)
 	return newUser
 }
