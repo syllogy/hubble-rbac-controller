@@ -101,7 +101,8 @@ func Test_DbtDeveloper(t *testing.T) {
 
 	dbUsername := fmt.Sprintf("%s_%s", data.dbtDeveloper.Username, data.dbtDeveloperRole.Name)
 
-	database := resolved.RedshiftModel.LookupDatabase(data.dev.ClusterIdentifier, data.dbtDeveloper.Username)
+	cluster := resolved.RedshiftModel.LookupCluster(data.dev.ClusterIdentifier)
+	database := cluster.LookupDatabase(data.dbtDeveloper.Username)
 	assert.NotNil(database, "database is registered")
 
 	group := database.LookupGroup(data.dbtDeveloperRole.Name)
@@ -152,7 +153,8 @@ func Test_BiAnalyst(t *testing.T) {
 
 	dbUsername := fmt.Sprintf("%s_%s", data.biAnalyst.Username, data.biAnalystRole.Name)
 
-	database := resolved.RedshiftModel.LookupDatabase(data.unstable.ClusterIdentifier, data.unstable.Name)
+	cluster := resolved.RedshiftModel.LookupCluster(data.unstable.ClusterIdentifier)
+	database := cluster.LookupDatabase(data.unstable.Name)
 	assert.NotNil(database, "database is registered")
 
 	group := database.LookupGroup(data.biAnalystRole.Name)

@@ -277,27 +277,27 @@ func (applier *Applier) applyDatabase(database *redshiftCore.Database) error {
 	return err
 }
 
-func (applier *Applier) deleteUnmanagedUsers(model redshiftCore.Model, clusterIdentifier string) error {
+func (applier *Applier) deleteUnmanagedUsers(cluster *redshiftCore.Cluster) error {
 
-	client, err := applier.clientGroup.MasterDatabase(clusterIdentifier)
+	client, err := applier.clientGroup.MasterDatabase(cluster.Identifier)
 
 	if err != nil {
-		return fmt.Errorf("no client for cluster %s: %w", clusterIdentifier, err)
+		return fmt.Errorf("no client for cluster %s: %w", cluster.Identifier, err)
 	}
 
 	usernames, err := client.Users()
 
 	if err != nil {
-		return fmt.Errorf("unable to list usernames for cluster %s: %w", clusterIdentifier, err)
+		return fmt.Errorf("unable to list usernames for cluster %s: %w", cluster.Identifier, err)
 	}
 
 	for _, username := range usernames {
-		if !applier.isUserExcluded(username) && !model.LookupUser(clusterIdentifier, username) {
+		if !applier.isUserExcluded(username) && cluster.LookupUser(username) == nil {
 			err = client.DeleteUser(username)
 			applier.eventListener.Handle(EnsureUserDeleted, username)
 
 			if err != nil {
-				return fmt.Errorf("unable to delete user %s in %s: %w", username, clusterIdentifier, err)
+				return fmt.Errorf("unable to delete user %s in %s: %w", username, cluster.Identifier, err)
 			}
 		}
 	}
@@ -306,29 +306,35 @@ func (applier *Applier) deleteUnmanagedUsers(model redshiftCore.Model, clusterId
 
 func (applier *Applier) Apply(model redshiftCore.Model) error {
 
-	for _, clusterIdentifier := range model.ClusterIdentifiers() {
-		err := applier.deleteUnmanagedUsers(model, clusterIdentifier)
-		if err != nil {
-			return err
-		}
+	err := model.Validate()
+
+	if err != nil {
+		return err
 	}
 
-	for _, database := range model.Databases {
+	for _, cluster := range model.Clusters {
+		for _, database := range cluster.Databases {
 
-		err := applier.applyDatabase(database)
+			err := applier.applyDatabase(database)
 
-		if err != nil {
-			return err
+			if err != nil {
+				return err
+			}
+
+			err = applier.applyGroups(database)
+
+			if err != nil {
+				return err
+			}
+
+			err = applier.applyUsers(database)
+
+			if err != nil {
+				return err
+			}
 		}
 
-		err = applier.applyGroups(database)
-
-		if err != nil {
-			return err
-		}
-
-		err = applier.applyUsers(database)
-
+		err := applier.deleteUnmanagedUsers(cluster)
 		if err != nil {
 			return err
 		}

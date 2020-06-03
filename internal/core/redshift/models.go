@@ -20,76 +20,121 @@ type ExternalSchema struct {
 	GlueDatabaseName string
 }
 
-type User struct {
+type DatabaseUser struct {
 	Name     string
 	MemberOf *Group
+}
+
+type User struct {
+	Name     string
+}
+
+type Cluster struct {
+	Identifier string
+	Users []*User
+	Databases []*Database
 }
 
 type Database struct {
 	ClusterIdentifier string
 	Name string
 	Owner *string
-	Users []*User
+	Users []*DatabaseUser
 	Groups []*Group
 }
 
 type Model struct {
-	Databases []*Database
+	Clusters []*Cluster
 }
 
-func (m *Model) ClusterIdentifiers() []string {
-	set := make(map[string]bool)
-	for _,database := range m.Databases {
-		set[database.ClusterIdentifier] = true
-	}
+func (m *Model) Validate() error {
+	for _,cluster := range m.Clusters {
+		err := cluster.Validate()
 
-	var result []string
-
-	for identifier,_ := range set {
-		result = append(result, identifier)
+		if err != nil {
+			return err
+		}
 	}
-	return result
+	return nil
 }
 
-func (m *Model) LookupUser(clusterIdentifier string, username string) bool {
-	for _,database := range m.Databases {
-		if database.ClusterIdentifier == clusterIdentifier {
-			for _,user := range database.Users {
-				if user.Name == username {
-					return true
-				}
+func (c *Cluster) Validate() error {
+	for _, database := range c.Databases {
+		for _, user := range database.Users {
+			if c.LookupUser(user.Name) == nil {
+				return fmt.Errorf("user with name %s from database %s has not been declared on the cluster", user.Name, database.Name)
 			}
 		}
 	}
-	return false
+	return nil
 }
 
-func (m *Model) LookupDatabase(clusterIdentifier string, name string) *Database {
-	for _,db := range m.Databases {
-		if db.ClusterIdentifier == clusterIdentifier && db.Name == strings.ToLower(name) {
+func (m *Model) LookupCluster(identifier string) *Cluster {
+	for _,cluster := range m.Clusters {
+		if cluster.Identifier == identifier {
+			return cluster
+		}
+	}
+	return nil
+}
+
+func (m *Model) DeclareCluster(identifier string) *Cluster {
+	existing := m.LookupCluster(identifier)
+	if existing != nil {
+		return existing
+	}
+
+	newCluster := &Cluster { Identifier: identifier, Databases: []*Database{}, Users: []*User{} }
+	m.Clusters = append(m.Clusters, newCluster)
+	return newCluster
+}
+
+func (c *Cluster) LookupUser(username string) *User {
+	for _,user := range c.Users {
+		if user.Name == username {
+			return user
+		}
+	}
+	return nil
+}
+
+func (c *Cluster) DeclareUser(name string) *User {
+	existing := c.LookupUser(name)
+	if existing != nil {
+		return existing
+	}
+
+	newUser := &User{ Name: strings.ToLower(name) }
+	c.Users = append(c.Users, newUser)
+	return newUser
+}
+
+func (c *Cluster) LookupDatabase(name string) *Database {
+	for _,db := range c.Databases {
+		if db.Name == strings.ToLower(name) {
 			return db
 		}
 	}
 	return nil
 }
 
-func (m *Model) DeclareDatabase(clusterIdentifier string, name string) *Database {
-	return m.declareDatabase(clusterIdentifier, name, nil)
+func (c *Cluster) DeclareDatabase(name string) *Database {
+	return c.declareDatabase(name, nil)
 }
 
-func (m *Model) DeclareDatabaseWithOwner(clusterIdentifier string, name string, owner string) *Database {
+func (c *Cluster) DeclareDatabaseWithOwner(name string, owner string) *Database {
 	lowercased := strings.ToLower(owner)
-	return m.declareDatabase(clusterIdentifier, name, &lowercased)
+	return c.declareDatabase(name, &lowercased)
 }
 
-func (m *Model) declareDatabase(clusterIdentifier string, name string, owner *string) *Database {
-	existing := m.LookupDatabase(clusterIdentifier, name)
+func (c *Cluster) declareDatabase(name string, owner *string) *Database {
+	existing := c.LookupDatabase( name)
 	if existing != nil {
 		return existing
 	}
 
-	newDatabase := &Database { ClusterIdentifier: clusterIdentifier, Name: strings.ToLower(name), Owner: owner }
-	m.Databases = append(m.Databases, newDatabase)
+	newDatabase := &Database { ClusterIdentifier: c.Identifier, Name: strings.ToLower(name), Owner: owner }
+	c.Databases = append(c.Databases, newDatabase)
 	return newDatabase
 }
 
@@ -113,7 +158,7 @@ func (d *Database) DeclareGroup(name string) *Group {
 	return newGroup
 }
 
-func (d *Database) LookupUser(name string) *User {
+func (d *Database) LookupUser(name string) *DatabaseUser {
 	for _, user := range d.Users {
 		if user.Name == strings.ToLower(name) {
 			return user
@@ -122,13 +167,13 @@ func (d *Database) LookupUser(name string) *User {
 	return nil
 }
 
-func (d *Database) DeclareUser(name string, of *Group) *User {
+func (d *Database) DeclareUser(name string, of *Group) *DatabaseUser {
 	existing := d.LookupUser(name)
 	if existing != nil {
 		return existing
 	}
 
-	newUser := &User { Name: strings.ToLower(name), MemberOf: of }
+	newUser := &DatabaseUser{ Name: strings.ToLower(name), MemberOf: of }
 	d.Users = append(d.Users, newUser)
 	return newUser
 }

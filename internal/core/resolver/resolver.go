@@ -46,7 +46,9 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				//Allow user/role to log into the database
 				databaseLoginPolicyForUserAndRole.Allow(db.ClusterIdentifier, db.Name)
 
-				database := model.RedshiftModel.DeclareDatabase(db.ClusterIdentifier, db.Name)
+				cluster := model.RedshiftModel.DeclareCluster(db.ClusterIdentifier)
+
+				database := cluster.DeclareDatabase(db.Name)
 
 				//Set needed grants on the user group
 				group := database.DeclareGroup(role.Name)
@@ -55,6 +57,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				}
 
 				//Declare a redshift user for the user/role and add it to the group
+				cluster.DeclareUser(userAndRoleUsername)
 				database.DeclareUser(userAndRoleUsername, group)
 
 				for _,glueDb := range role.GrantedGlueDatabases {
@@ -71,11 +74,13 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				//Allow user/role to log into the database
 				databaseLoginPolicyForUserAndRole.Allow(db.ClusterIdentifier, user.Username)
 
-				database := model.RedshiftModel.DeclareDatabaseWithOwner(db.ClusterIdentifier, user.Username, userAndRoleUsername)
+				cluster := model.RedshiftModel.DeclareCluster(db.ClusterIdentifier)
+				database := cluster.DeclareDatabaseWithOwner(user.Username, userAndRoleUsername)
 
 				group := database.DeclareGroup(role.Name)
 
 				//Declare a redshift user for the user/role and add it to the group
+				cluster.DeclareUser(userAndRoleUsername)
 				database.DeclareUser(userAndRoleUsername, group)
 
 				for _,glueDb := range role.GrantedGlueDatabases {
