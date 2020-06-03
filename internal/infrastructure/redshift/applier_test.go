@@ -61,40 +61,6 @@ func failOnError(err error) {
 	}
 }
 
-type DatabaseContents struct {
-	users []string
-	groups []string
-	groupMemberships map[string][]string
-	grants map[string][]string
-}
-
-func assertDatabase(assert *assert.Assertions, client *Client, expected DatabaseContents) {
-	dbGroups, _ := client.Groups()
-	dbUsers, _ := client.Users()
-
-	sort.Strings(expected.users)
-	sort.Strings(dbUsers)
-	assert.Equal(expected.users, dbUsers, "users")
-
-	sort.Strings(expected.groups)
-	sort.Strings(dbGroups)
-	assert.Equal(expected.groups, dbGroups, "groups")
-
-	for user,groups := range expected.groupMemberships {
-		dbUserGroups, _ := client.PartOf(user)
-		sort.Strings(dbUserGroups)
-		sort.Strings(groups)
-		assert.Equal(groups, dbUserGroups, "group membership")
-	}
-
-	for group,schemas := range expected.grants {
-		dbSchemas, _ := client.Grants(group)
-		sort.Strings(dbSchemas)
-		sort.Strings(schemas)
-		assert.Equal(schemas, dbSchemas, "grants")
-	}
-}
-
 func TestApplier_ManageResources(t *testing.T) {
 
 	assert := assert.New(t)
@@ -111,7 +77,7 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	err := applier.Apply(model)
 	assert.NoError(err)
-	assert.Equal(0, eventRecorder.countAll())
+	assert.Equal(0, eventRecorder.CountAll())
 
 	//Create a database with a BI user
 	cluster := model.DeclareCluster("dev")
@@ -126,17 +92,18 @@ func TestApplier_ManageResources(t *testing.T) {
 	redshiftClient, err := clientGroup.ForDatabase(database)
 	failOnError(err)
 
-	assertDatabase(assert, redshiftClient, DatabaseContents{
-		users:            []string{"lunarway","jwr_bianalyst"},
-		groups:           []string{"bianalyst"},
-		groupMemberships: map[string][]string{"jwr_bianalyst": {"bianalyst"}},
-		grants:           map[string][]string{},
-	})
+	actual := FetchState(redshiftClient)
+	AssertState(assert, actual, RedshiftState{
+		Users:            []string{"lunarway","jwr_bianalyst"},
+		Groups:           []string{"bianalyst"},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}},
+		Grants:           map[string][]string{"bianalyst": {"public"}},
+	}, "")
 
-	assert.Equal(1, eventRecorder.count(EnsureGroupExists))
-	assert.Equal(0, eventRecorder.count(EnsureSchemaExists))
-	assert.Equal(1, eventRecorder.count(EnsureUserExists))
-	assert.Equal(1, eventRecorder.count(EnsureUserIsInGroup))
+	assert.Equal(1, eventRecorder.Count(EnsureGroupExists))
+	assert.Equal(0, eventRecorder.Count(EnsureSchemaExists))
+	assert.Equal(1, eventRecorder.Count(EnsureUserExists))
+	assert.Equal(1, eventRecorder.Count(EnsureUserIsInGroup))
 
 	//Grant access to "bi"
 	biGroup.GrantSchema(&redshift.Schema{ Name: "bi" })
@@ -144,15 +111,16 @@ func TestApplier_ManageResources(t *testing.T) {
 	err = applier.Apply(model)
 	assert.NoError(err)
 
-	assertDatabase(assert, redshiftClient, DatabaseContents{
-		users:            []string{"lunarway","jwr_bianalyst"},
-		groups:           []string{"bianalyst"},
-		groupMemberships: map[string][]string{"jwr_bianalyst": {"bianalyst"}},
-		grants:           map[string][]string{"bianalyst": {"public", "bi"}},
-	})
+	actual = FetchState(redshiftClient)
+	AssertState(assert, actual, RedshiftState{
+		Users:            []string{"lunarway","jwr_bianalyst"},
+		Groups:           []string{"bianalyst"},
+		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}},
+		Grants:           map[string][]string{"bianalyst": {"public", "bi"}},
+	}, "")
 
-	assert.Equal(1, eventRecorder.count(EnsureSchemaExists))
-	assert.Equal(1, eventRecorder.count(EnsureAccessIsGrantedToSchema))
+	assert.Equal(1, eventRecorder.Count(EnsureSchemaExists))
+	assert.Equal(1, eventRecorder.Count(EnsureAccessIsGrantedToSchema))
 
 	//Grant access to "test"
 	biGroup.GrantSchema(&redshift.Schema{ Name: "test" })
@@ -160,12 +128,13 @@ func TestApplier_ManageResources(t *testing.T) {
 	err = applier.Apply(model)
 	assert.NoError(err)
 
-	assertDatabase(assert, redshiftClient, DatabaseContents{
-		users:            []string{"lunarway","jwr_bianalyst"},
-		groups:           []string{"bianalyst"},
-		groupMemberships: map[string][]string{"jwr_bianalyst": {"bianalyst"}},
-		grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}},
-	})
+	actual = FetchState(redshiftClient)
+	AssertState(assert, actual, RedshiftState{
+		Users:            []string{"lunarway","jwr_bianalyst"},
+		Groups:           []string{"bianalyst"},
+		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}},
+		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}},
+	}, "")
 
 	//Add another BI user
 	cluster.DeclareUser("nra_bianalyst")
@@ -174,12 +143,13 @@ func TestApplier_ManageResources(t *testing.T) {
 	err = applier.Apply(model)
 	assert.NoError(err)
 
-	assertDatabase(assert, redshiftClient, DatabaseContents{
-		users:            []string{"lunarway","jwr_bianalyst","nra_bianalyst"},
-		groups:           []string{"bianalyst"},
-		groupMemberships: map[string][]string{"jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}},
-		grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}},
-	})
+	actual = FetchState(redshiftClient)
+	AssertState(assert, actual, RedshiftState{
+		Users:            []string{"lunarway","jwr_bianalyst","nra_bianalyst"},
+		Groups:           []string{"bianalyst"},
+		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}},
+		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}},
+	}, "")
 
 	//Add an AML user
 	amlGroup := database.DeclareGroup("aml")
@@ -190,12 +160,13 @@ func TestApplier_ManageResources(t *testing.T) {
 	err = applier.Apply(model)
 	assert.NoError(err)
 
-	assertDatabase(assert, redshiftClient, DatabaseContents{
-		users:            []string{"lunarway","jwr_bianalyst","nra_bianalyst", "jwr_aml"},
-		groups:           []string{"bianalyst", "aml"},
-		groupMemberships: map[string][]string{"jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}, "jwr_aml": {"aml"}},
-		grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}, "aml": {"public","lwgoevents"}},
-	})
+	actual = FetchState(redshiftClient)
+	AssertState(assert, actual, RedshiftState{
+		Users:            []string{"lunarway","jwr_bianalyst","nra_bianalyst", "jwr_aml"},
+		Groups:           []string{"bianalyst", "aml"},
+		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}, "jwr_aml": {"aml"}},
+		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}, "aml": {"public","lwgoevents"}},
+	}, "")
 }
 
 func TestApplier_FailsOnUnmanagedUser(t *testing.T) {

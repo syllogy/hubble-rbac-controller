@@ -96,13 +96,10 @@ func TestApplier_NoRoles(t *testing.T) {
 	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{}})
 	assert.NoError(err)
 
-	roles, err := context.client.ListRoles()
-	failOnError(err)
-	assert.Empty(roles)
-
-	policies, err := context.client.ListPolicies()
-	failOnError(err)
-	assert.Empty(policies)
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{}
+	AssertState(assert, actual, expected, "There are no IAM roles")
 
 	assert.Equal(0, len(context.eventRecorder.events))
 }
@@ -133,16 +130,13 @@ func TestApplier_SingleRole(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := context.client.ListRoles()
-	failOnError(err)
-	assert.Equal(1, len(roles))
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst"}}
+	AssertState(assert, actual, expected, "IAM role have been created")
 
-	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
-	failOnError(err)
-	assert.Equal(1, len(attachedPolicies), "database login policy has been added to the role")
-
-	assert.Equal(1, context.eventRecorder.count(RoleCreated))
-	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
+	assert.Equal(1, context.eventRecorder.Count(RoleCreated))
+	assert.Equal(1, context.eventRecorder.Count(PolicyCreated))
 }
 
 func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
@@ -175,16 +169,13 @@ func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := context.client.ListRoles()
-	failOnError(err)
-	assert.Equal(1, len(roles))
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst"}}
+	AssertState(assert, actual, expected, "IAM role have been created")
 
-	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
-	failOnError(err)
-	assert.Equal(1, len(attachedPolicies), "database login policy has been added to the role")
-
-	assert.Equal(1, context.eventRecorder.count(RoleCreated))
-	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
+	assert.Equal(1, context.eventRecorder.Count(RoleCreated))
+	assert.Equal(1, context.eventRecorder.Count(PolicyCreated))
 }
 
 func TestApplier_SingleRoleTwoUsers(t *testing.T) {
@@ -223,16 +214,13 @@ func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := context.client.ListRoles()
-	failOnError(err)
-	assert.Equal(1, len(roles))
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst", "nra_bianalyst"}}
+	AssertState(assert, actual, expected, "IAM role have been created")
 
-	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
-	failOnError(err)
-	assert.Equal(2, len(attachedPolicies), "database login policies has been added to the role")
-
-	assert.Equal(1, context.eventRecorder.count(RoleCreated))
-	assert.Equal(2, context.eventRecorder.count(PolicyCreated))
+	assert.Equal(1, context.eventRecorder.Count(RoleCreated))
+	assert.Equal(2, context.eventRecorder.Count(PolicyCreated))
 }
 
 
@@ -286,17 +274,14 @@ func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := context.client.ListRoles()
-	failOnError(err)
-	assert.Equal(1, len(roles))
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst"}}
+	AssertState(assert, actual, expected, "IAM role have been created")
 
-	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
-	failOnError(err)
-	assert.Equal(1, len(attachedPolicies), "database login policy has been added to the role")
-
-	assert.Equal(1, context.eventRecorder.count(RoleCreated))
-	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
-	assert.Equal(1, context.eventRecorder.count(PolicyUpdated))
+	assert.Equal(1, context.eventRecorder.Count(RoleCreated))
+	assert.Equal(1, context.eventRecorder.Count(PolicyCreated))
+	assert.Equal(1, context.eventRecorder.Count(PolicyUpdated))
 }
 
 func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
@@ -325,6 +310,11 @@ func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
 
 	failOnError(err)
 
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst"}}
+	AssertState(assert, actual, expected, "IAM role has not attached policies")
+
 	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
 		{
 			Name:                  "BiAnalyst",
@@ -333,11 +323,9 @@ func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
 	}})
 	failOnError(err)
 
-	policies, err := context.client.ListPolicies()
-	failOnError(err)
-	assert.Equal(0, len(policies))
-
-
+	actual = FetchIAMState(context.client)
+	expected.Roles = map[string][]string{"BiAnalyst": {}}
+	AssertState(assert, actual, expected, "IAM role has not attached policies")
 }
 
 func TestApplier_RoleWithNoUsers(t *testing.T) {
@@ -354,13 +342,10 @@ func TestApplier_RoleWithNoUsers(t *testing.T) {
 	}})
 	assert.NoError(err)
 
-	roles, err := context.client.ListRoles()
-	failOnError(err)
-	assert.Equal(1, len(roles))
-
-	policies, err := context.client.ListPolicies()
-	failOnError(err)
-	assert.Equal(0, len(policies))
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {}}
+	AssertState(assert, actual, expected, "IAM role has not attached policies")
 }
 
 
@@ -412,14 +397,10 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 
 	assert.NoError(err)
 
-	roles, err := context.client.ListRoles()
-	failOnError(err)
-	assert.Equal(1, len(roles))
-
-	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
-	failOnError(err)
-
-	assert.Equal(2, len(attachedPolicies), "referenced policy has been added to the role")
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst", "access-to-tmp-bucket"}}
+	AssertState(assert, actual, expected, "IAM role have been created")
 
 	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
 		{
@@ -441,14 +422,9 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 	}})
 	assert.NoError(err)
 
-	roles, err = context.client.ListRoles()
-	failOnError(err)
-	assert.Equal(1, len(roles))
-
-	attachedPolicies, err = context.client.ListManagedAttachedPolicies(roles[0])
-	failOnError(err)
-
-	assert.Equal(1, len(attachedPolicies), "referenced policy has been removed")
+	actual = FetchIAMState(context.client)
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst"}}
+	AssertState(assert, actual, expected, "IAM role have been created")
 
 }
 
