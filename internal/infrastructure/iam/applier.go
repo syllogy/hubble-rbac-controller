@@ -161,7 +161,7 @@ func (applier *Applier) createRole(name string) (*iam.Role, error) {
 
 func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *iam.Role, policyDocuments map[string]string) error {
 
-	attachedPolicies, err := applier.client.ListAttachedPolicies(currentRole)
+	attachedPolicies, err := applier.client.ListManagedAttachedPolicies(currentRole)
 
 	if err != nil {
 		return fmt.Errorf("unable to list attached policies: %w", err)
@@ -235,12 +235,25 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 		}
 	}
 
+	unmanagedAttachedPolicies, err := applier.client.ListUnmanagedAttachedPolicies(currentRole)
+
+	for _, attachedPolicy := range unmanagedAttachedPolicies {
+		if desiredRole.LookupReferencedPolicy(*attachedPolicy.PolicyArn) == nil {
+
+			err := applier.client.detachPolicy(currentRole, attachedPolicy)
+
+			if err != nil {
+				return fmt.Errorf("failed detaching policy %s: %w", *attachedPolicy.PolicyName, err)
+			}
+		}
+	}
+
 	return nil
 }
 
 func (applier *Applier) deleteRole(role *iam.Role) error {
 
-	attachedPolicies, err := applier.client.ListAttachedPolicies(role)
+	attachedPolicies, err := applier.client.ListManagedAttachedPolicies(role)
 
 	if err != nil {
 		return err

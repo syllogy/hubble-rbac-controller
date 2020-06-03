@@ -185,7 +185,7 @@ func Test_DetachPolicy_Is_Idempotent(t *testing.T) {
 	err = iamClient.attachPolicy(role, policy)
 	assert.NoError(err)
 
-	attachedPolicies, err := iamClient.ListAttachedPolicies(role)
+	attachedPolicies, err := iamClient.ListManagedAttachedPolicies(role)
 
 	err = iamClient.detachPolicy(role, attachedPolicies[0])
 	assert.NoError(err)

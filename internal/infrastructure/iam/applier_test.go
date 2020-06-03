@@ -137,9 +137,9 @@ func TestApplier_SingleRole(t *testing.T) {
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	policies, err := context.client.ListPolicies()
+	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
 	failOnError(err)
-	assert.Equal(1, len(policies))
+	assert.Equal(1, len(attachedPolicies), "database login policy has been added to the role")
 
 	assert.Equal(1, context.eventRecorder.count(RoleCreated))
 	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
@@ -179,9 +179,9 @@ func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	policies, err := context.client.ListPolicies()
+	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
 	failOnError(err)
-	assert.Equal(1, len(policies))
+	assert.Equal(1, len(attachedPolicies), "database login policy has been added to the role")
 
 	assert.Equal(1, context.eventRecorder.count(RoleCreated))
 	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
@@ -227,9 +227,9 @@ func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	policies, err := context.client.ListPolicies()
+	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
 	failOnError(err)
-	assert.Equal(2, len(policies))
+	assert.Equal(2, len(attachedPolicies), "database login policies has been added to the role")
 
 	assert.Equal(1, context.eventRecorder.count(RoleCreated))
 	assert.Equal(2, context.eventRecorder.count(PolicyCreated))
@@ -290,9 +290,9 @@ func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	policies, err := context.client.ListPolicies()
+	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
 	failOnError(err)
-	assert.Equal(1, len(policies))
+	assert.Equal(1, len(attachedPolicies), "database login policy has been added to the role")
 
 	assert.Equal(1, context.eventRecorder.count(RoleCreated))
 	assert.Equal(1, context.eventRecorder.count(PolicyCreated))
@@ -354,6 +354,10 @@ func TestApplier_RoleWithNoUsers(t *testing.T) {
 	}})
 	assert.NoError(err)
 
+	roles, err := context.client.ListRoles()
+	failOnError(err)
+	assert.Equal(1, len(roles))
+
 	policies, err := context.client.ListPolicies()
 	failOnError(err)
 	assert.Equal(0, len(policies))
@@ -412,7 +416,7 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	attachedPolicies, err := context.client.ListAttachedPolicies(roles[0])
+	attachedPolicies, err := context.client.ListManagedAttachedPolicies(roles[0])
 	failOnError(err)
 
 	assert.Equal(2, len(attachedPolicies), "referenced policy has been added to the role")
@@ -441,7 +445,7 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 	failOnError(err)
 	assert.Equal(1, len(roles))
 
-	attachedPolicies, err = context.client.ListAttachedPolicies(roles[0])
+	attachedPolicies, err = context.client.ListManagedAttachedPolicies(roles[0])
 	failOnError(err)
 
 	assert.Equal(1, len(attachedPolicies), "referenced policy has been removed")

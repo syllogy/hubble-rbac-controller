@@ -109,14 +109,14 @@ func (client *Client) ListPolicies() ([]*iam.Policy, error) {
 	return response.Policies, nil
 }
 
-func (client *Client) ListAttachedPolicies(role *iam.Role) ([]*iam.AttachedPolicy, error) {
+func (client *Client) listAttachedPolicies(role *iam.Role, prefix *string) ([]*iam.AttachedPolicy, error) {
 
 	c := iam.New(client.session)
 	maxItems := int64(500)
 
 	response, err := c.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
 		MaxItems:   &maxItems,
-		PathPrefix: &iamPrefix,
+		PathPrefix: prefix,
 		RoleName:   role.RoleName,
 	})
 
@@ -133,6 +133,27 @@ func (client *Client) ListAttachedPolicies(role *iam.Role) ([]*iam.AttachedPolic
 
 	return response.AttachedPolicies, nil
 }
+
+func (client *Client) ListManagedAttachedPolicies(role *iam.Role) ([]*iam.AttachedPolicy, error) {
+	return client.listAttachedPolicies(role, &iamPrefix)
+}
+
+func (client *Client) ListUnmanagedAttachedPolicies(role *iam.Role) ([]*iam.AttachedPolicy, error) {
+
+	allPolicies, err := client.listAttachedPolicies(role, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*iam.AttachedPolicy
+	for _, policy := range allPolicies {
+		if !strings.Contains(*policy.PolicyArn, iamPrefix) {
+			result = append(result, policy)
+		}
+	}
+	return result, nil
+}
+
 
 func (client *Client) GetPolicy(policy *iam.AttachedPolicy) (*iam.Policy, error) {
 
@@ -234,7 +255,7 @@ func (client *Client) attachPolicy(role *iam.Role, policy *iam.Policy) error {
 
 	c := iam.New(client.session)
 
-	attachedPolicies, err := client.ListAttachedPolicies(role)
+	attachedPolicies, err := client.ListManagedAttachedPolicies(role)
 
 	if err != nil {
 		return fmt.Errorf("unable to list attached policies: %w", err)
@@ -250,6 +271,7 @@ func (client *Client) attachPolicy(role *iam.Role, policy *iam.Policy) error {
 			return fmt.Errorf("unable to attach policy %s to role %s: %w", *policy.PolicyName, *role.RoleName, err)
 		}
 	}
+	attachedPolicies, err = client.ListManagedAttachedPolicies(role)
 
 	return nil
 }
@@ -258,7 +280,7 @@ func (client *Client) detachPolicy(role *iam.Role, policy *iam.AttachedPolicy) e
 
 	c := iam.New(client.session)
 
-	attachedPolicies, err := client.ListAttachedPolicies(role)
+	attachedPolicies, err := client.ListManagedAttachedPolicies(role)
 
 	if err != nil {
 		return fmt.Errorf("unable to list attached policies: %w", err)
