@@ -26,6 +26,15 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 		GoogleModel:google.Model{},
 	}
 
+	for _,db := range grant.Databases {
+		cluster := model.RedshiftModel.DeclareCluster(db.ClusterIdentifier)
+		cluster.DeclareDatabase(db.Name)
+	}
+
+	for _,role := range grant.Roles {
+		model.IamModel.DeclareRole(role.Name)
+	}
+
 	for _,user := range grant.Users {
 
 		googleLogin := model.GoogleModel.DeclareUser(user.Email)
