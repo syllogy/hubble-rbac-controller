@@ -1,9 +1,12 @@
+//+build integration
+
 package google
 
 import (
 	googleCore "github.com/lunarway/hubble-rbac-controller/internal/core/google"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -13,7 +16,7 @@ func failOnError(err error) {
 	}
 }
 
-var ServiceAccountFilePath = "/Users/jimmyrasmussen/Downloads/gsuite-test-6ad32b5ed2e9.json"
+var ServiceAccountFilePath = os.Getenv("GOOGLE_CREDENTIALS_FILE_PATH")
 
 func TestApplier_SingleRole(t *testing.T) {
 

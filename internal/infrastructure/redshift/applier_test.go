@@ -1,3 +1,5 @@
+//+build integration
+
 package redshift
 
 import (
@@ -144,7 +146,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	}, "")
 }
 
-func TestApplier_FailsOnUnmanagedUser(t *testing.T) {
+func TestApplier_FailsOnExcludedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
@@ -169,7 +171,7 @@ func TestApplier_FailsOnUnmanagedUser(t *testing.T) {
 	assert.Error(err)
 }
 
-func TestApplier_FailsOnUnmanagedSchema(t *testing.T) {
+func TestApplier_FailsOnExcludedSchema(t *testing.T) {
 
 	assert := assert.New(t)
 

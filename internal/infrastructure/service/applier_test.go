@@ -1,3 +1,5 @@
+//+build integration
+
 package service
 
 import (
@@ -74,7 +76,7 @@ func setUp() {
 }
 
 
-func TestApplier_ManageResourcesXX(t *testing.T) {
+func TestApplier_Apply(t *testing.T) {
 
 	setUp()
 
