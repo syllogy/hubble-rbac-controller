@@ -13,28 +13,6 @@ import (
 //YOU MUST RUN docker-compose up PRIOR TO RUNNING THIS TEST
 
 
-type EventRecorder struct {
-	events []ApplyEventType
-}
-
-func (e *EventRecorder) Handle(eventType ApplyEventType, name string) {
-	e.events = append(e.events, eventType)
-}
-
-func (e *EventRecorder) count(eventType ApplyEventType) int {
-	result := 0
-	for _, event := range e.events {
-		if event == eventType {
-			result += 1
-		}
-	}
-	return result
-}
-
-func (e *EventRecorder) Reset() {
-	e.events = []ApplyEventType{}
-}
-
 type TestContext struct {
 	applier *Applier
 	client *Client

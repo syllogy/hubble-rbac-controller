@@ -5,38 +5,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"os"
-	"sort"
 	"testing"
 )
 
 //YOU MUST RUN docker-compose up PRIOR TO RUNNING THIS TEST
-
-type EventRecorder struct {
-	events []ApplyEventType
-}
-
-func (e *EventRecorder) Handle(eventType ApplyEventType, name string) {
-	log.Infof("Event %s:%s occurred", eventType.ToString(), name)
-	e.events = append(e.events, eventType)
-}
-
-func (e *EventRecorder) reset() {
-	e.events = []ApplyEventType{}
-}
-
-func (e *EventRecorder) countAll() int {
-	return len(e.events)
-}
-
-func (e *EventRecorder) count(eventType ApplyEventType) int {
-	result := 0
-	for _, event := range e.events {
-		if event == eventType {
-			result += 1
-		}
-	}
-	return result
-}
 
 var localhostCredentials ClusterCredentials
 
