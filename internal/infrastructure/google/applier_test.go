@@ -25,7 +25,7 @@ func TestApplier_SingleRole(t *testing.T) {
 	jsonCredentials, err := ioutil.ReadFile(ServiceAccountFilePath)
 	assert.NoError(err)
 
-	client, err := NewGoogleClient(jsonCredentials, "jwr@chatjing.com")
+	client, err := NewGoogleClient(jsonCredentials, "jwr@chatjing.com", "478824949770")
 	failOnError(err)
 
 	email := "jwr@chatjing.com"
@@ -47,5 +47,5 @@ func TestApplier_SingleRole(t *testing.T) {
 
 	googleRoles, err := client.Roles(jwr.Id)
 	failOnError(err)
-	assert.Equal([]string{"BiAnalyst"}, googleRoles)
+	assert.Equal([]string{"arn:aws:iam::478824949770:role/hubble-rbac/BiAnalyst,arn:aws:iam::478824949770:saml-provider/GoogleApp"}, googleRoles)
 }

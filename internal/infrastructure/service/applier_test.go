@@ -94,7 +94,7 @@ func TestApplier_Apply(t *testing.T) {
 	if err != nil {
 		log.Fatalf("Unable to retrieve users in domain: %v", err)
 	}
-	googleClient, _ := google.NewGoogleClient(jsonCredentials, "jwr@chatjing.com")
+	googleClient, _ := google.NewGoogleClient(jsonCredentials, "jwr@chatjing.com", "478824949770")
 
 	redshiftClient, err := redshift.NewClient(
 		localhostCredentials.Username,

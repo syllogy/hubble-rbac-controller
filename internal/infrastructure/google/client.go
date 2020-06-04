@@ -10,21 +10,21 @@ import (
 )
 
 
-
-type AwsRole struct {
+type AwsRoleCustomSchemaDTO struct {
 	Type string `json:"type"`
 	Value string `json:"value"`
 }
 
-type AwsRoles struct {
-	Roles []AwsRole `json:"Role"`
-	SessionDuration int `json:"SessionDuration"`
+type AwsRolesCustomSchemaDTO struct {
+	Roles []AwsRoleCustomSchemaDTO `json:"Role"`
+	SessionDuration int            `json:"SessionDuration"`
 }
 
 type User struct {
 	Id string
 	email string
 }
+
 
 // Build and returns an Admin SDK Directory service object authorized with
 // the service accounts that act on behalf of the given user.
@@ -53,9 +53,10 @@ func createDirectoryService(jsonKey []byte, userEmail string) (*admin.Service, e
 
 type Client struct {
 	service *admin.Service
+	awsAccountId string
 }
 
-func NewGoogleClient(jsonKey []byte, principalEmail string) (*Client, error) {
+func NewGoogleClient(jsonKey []byte, principalEmail string, awsAccountId string) (*Client, error) {
 
 	service, err := createDirectoryService(jsonKey, principalEmail)
 
@@ -63,10 +64,13 @@ func NewGoogleClient(jsonKey []byte, principalEmail string) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{service:service}, nil
+	return &Client{
+		service:service,
+		awsAccountId: awsAccountId,
+	}, nil
 }
 
-func (client *Client) update(userKey string, awsRoles AwsRoles) error {
+func (client *Client) update(userKey string, awsRoles AwsRolesCustomSchemaDTO) error {
 
 	x, err := client.service.Users.Get(userKey).Projection("full").Do()
 	if err != nil {
@@ -88,18 +92,18 @@ func (client *Client) update(userKey string, awsRoles AwsRoles) error {
 	return nil
 }
 
-func (client *Client) createAwsRoles(roles []string) AwsRoles {
+func (client *Client) createDTO(roles []string) AwsRolesCustomSchemaDTO {
 
-	var awsRoles []AwsRole
+	var awsRoles []AwsRoleCustomSchemaDTO
 
 	for _, role := range roles {
-		awsRole := AwsRole{
+		awsRole := AwsRoleCustomSchemaDTO{
 			Type:  "work",
-			Value: role,
+			Value: fmt.Sprintf("arn:aws:iam::%s:role/hubble-rbac/%s,arn:aws:iam::%s:saml-provider/GoogleApp", client.awsAccountId, role, client.awsAccountId),
 		}
 		awsRoles = append(awsRoles, awsRole)
 	}
-	return AwsRoles{
+	return AwsRolesCustomSchemaDTO{
 		Roles:awsRoles,
 		SessionDuration:14400,
 	}
@@ -136,7 +140,7 @@ func (client *Client) Users() ([]User, error) {
 }
 
 func (client *Client) UpdateRoles(userId string, roles []string) error {
-	return client.update(userId, client.createAwsRoles(roles))
+	return client.update(userId, client.createDTO(roles))
 }
 
 func (client *Client) Roles(userId string) ([]string, error) {
@@ -146,7 +150,7 @@ func (client *Client) Roles(userId string) ([]string, error) {
 		return nil, err
 	}
 
-	var awsRoles AwsRoles
+	var awsRoles AwsRolesCustomSchemaDTO
 	err = json.Unmarshal(googleUser.CustomSchemas["AWS"], &awsRoles)
 
 	if err != nil {
