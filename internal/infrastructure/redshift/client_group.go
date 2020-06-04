@@ -45,3 +45,14 @@ func (cg ClientGroup) MasterDatabase(clusterIdentifier string) (*Client, error) 
 
 	return NewClient(credentials.Username, credentials.Password, credentials.Host, credentials.MasterDatabase, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
+
+func (cg ClientGroup) Database(clusterIdentifier string, databaseName string) (*Client, error) {
+
+	credentials, ok := cg.credentials[clusterIdentifier]
+
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("Unknown cluster with identifier %s", clusterIdentifier))
+	}
+
+	return NewClient(credentials.Username, credentials.Password, credentials.Host, databaseName, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
+}

@@ -1,0 +1,194 @@
+package service
+
+import (
+	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"io/ioutil"
+	"os"
+	"testing"
+)
+
+var ServiceAccountFilePath = os.Getenv("GOOGLE_CREDENTIALS_FILE_PATH")
+const accountId = "478824949770"
+const region = "eu-west-1"
+
+var localhostCredentials redshift.ClusterCredentials
+
+func init() {
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.InfoLevel)
+
+	localhostCredentials = redshift.ClusterCredentials{
+		Username:                 "lunarway",
+		Password:                 "lunarway",
+		MasterDatabase:           "lunarway",
+		Host:                     "localhost",
+		Sslmode:                  "disable",
+		Port:                     5432,
+		ExternalSchemasSupported: false,
+	}
+}
+
+func failOnError(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func setUp() {
+
+	session := iam.LocalStackSessionFactory{}.CreateSession()
+	iamClient := iam.New(session)
+
+	roles, err := iamClient.ListRoles()
+	failOnError(err)
+
+	for _, role := range roles {
+
+		attachedPolicies, err := iamClient.ListManagedAttachedPolicies(role)
+		failOnError(err)
+
+		for _, attachedPolicy := range attachedPolicies {
+			err = iamClient.DetachPolicy(role, attachedPolicy)
+			failOnError(err)
+
+			err = iamClient.DeleteAttachedPolicy(attachedPolicy)
+			failOnError(err)
+		}
+
+		err = iamClient.DeleteLoginRole(role)
+		failOnError(err)
+	}
+
+	policies, err := iamClient.ListPolicies()
+	failOnError(err)
+
+	for _, policy := range policies {
+		err = iamClient.DeletePolicy(policy)
+		failOnError(err)
+	}
+}
+
+
+func TestApplier_ManageResourcesXX(t *testing.T) {
+
+	setUp()
+
+	assert := assert.New(t)
+
+	excludedUsers := []string{
+		"lunarway",
+	}
+	clientGroup := redshift.NewClientGroup(map[string]*redshift.ClusterCredentials{"hubble": &localhostCredentials})
+
+	session := iam.LocalStackSessionFactory{}.CreateSession()
+	iamClient := iam.New(session)
+
+	jsonCredentials, err := ioutil.ReadFile(ServiceAccountFilePath)
+	if err != nil {
+		log.Fatalf("Unable to retrieve users in domain: %v", err)
+	}
+	googleClient, _ := google.NewGoogleClient(jsonCredentials, "jwr@chatjing.com")
+
+	redshiftClient, err := redshift.NewClient(
+		localhostCredentials.Username,
+		localhostCredentials.Password,
+		localhostCredentials.Host,
+		"prod",
+		localhostCredentials.Sslmode,
+		localhostCredentials.Port,
+		localhostCredentials.ExternalSchemasSupported,
+		)
+	failOnError(err)
+
+	redshiftExpected := redshift.NewRedshiftState()
+	redshiftExpected.Users = []string{"lunarway"}
+	redshiftExpected.GroupMemberships = map[string][]string{"lunarway": {}}
+
+	iamExpected := iam.IAMState{}
+
+	applier := NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region)
+
+	model := hubble.Model{}
+	user := model.AddUser("jwr", "jwr@lunar.app")
+	err = applier.Apply(model, false)
+	failOnError(err)
+
+	log.Info("Create database")
+	database := model.AddDatabase("hubble", "prod")
+	err = applier.Apply(model, false)
+	failOnError(err)
+
+	redshiftActual := redshift.FetchState(redshiftClient)
+	redshift.AssertState(assert, redshiftActual, redshiftExpected, "database should be unaffected")
+	iamActual := iam.FetchIAMState(iamClient)
+	iam.AssertState(assert, iamActual, iamExpected, "IAM should be unaffected")
+
+	log.Info("Create role")
+	role := model.AddRole("BiAnalyst", []hubble.DataSet{"public_bi"})
+	err = applier.Apply(model, false)
+	failOnError(err)
+
+	redshiftActual = redshift.FetchState(redshiftClient)
+	redshift.AssertState(assert, redshiftActual, redshiftExpected, "database should be unaffected")
+	iamExpected.Roles = map[string][]string{"BiAnalyst": {}}
+	iamActual = iam.FetchIAMState(iamClient)
+	iam.AssertState(assert, iamActual, iamExpected, "IAM role have been created")
+
+	log.Info("Grant role access to database")
+	role.GrantAccess(database)
+	err = applier.Apply(model, false)
+	failOnError(err)
+
+	redshiftActual = redshift.FetchState(redshiftClient)
+	redshift.AssertState(assert, redshiftActual, redshiftExpected, "database should be unaffected")
+	iamActual = iam.FetchIAMState(iamClient)
+	iam.AssertState(assert, iamActual, iamExpected, "IAM role have been created")
+
+	log.Info("Assign user to role")
+	user.Assign(role)
+	err = applier.Apply(model, false)
+	failOnError(err)
+
+	redshiftExpected.Users = []string{"lunarway", "jwr_bianalyst"}
+	redshiftExpected.Groups = []string{"bianalyst"}
+	redshiftExpected.GroupMemberships = map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}}
+	redshiftExpected.Grants = map[string][]string{"bianalyst": {"public","public_bi"}}
+	redshiftActual = redshift.FetchState(redshiftClient)
+	redshift.AssertState(assert, redshiftActual, redshiftExpected, "user,groups and grants have been created")
+
+	iamExpected.Roles = map[string][]string{"BiAnalyst": {"jwr_BiAnalyst"}}
+	iamActual = iam.FetchIAMState(iamClient)
+	iam.AssertState(assert, iamActual, iamExpected, "IAM policy for jwr has been attached to role")
+
+	log.Info("Revoke access")
+	role.RevokeAccess(database)
+	err = applier.Apply(model, false)
+	failOnError(err)
+
+	redshiftExpected = redshift.NewRedshiftState()
+	redshiftExpected.Users = []string{"lunarway"}
+	redshiftExpected.GroupMemberships = map[string][]string{"lunarway": {}}
+	redshiftExpected.Groups = []string{}
+	redshiftExpected.Grants = map[string][]string{}
+	redshiftActual = redshift.FetchState(redshiftClient)
+	redshift.AssertState(assert, redshiftActual, redshiftExpected, "the user, group and grants have been removed")
+
+	iamExpected.Roles = map[string][]string{"BiAnalyst": {}}
+	iamActual = iam.FetchIAMState(iamClient)
+	iam.AssertState(assert, iamActual, iamExpected, "IAM policy for jwr has been detached from role")
+
+	log.Info("Unassign user from role")
+	user.Unassign(role)
+	err = applier.Apply(model, false)
+	failOnError(err)
+
+	redshiftActual = redshift.FetchState(redshiftClient)
+	redshift.AssertState(assert, redshiftActual, redshiftExpected, "the user, group and grants have been removed")
+	iamActual = iam.FetchIAMState(iamClient)
+	iam.AssertState(assert, iamActual, iamExpected, "IAM policy for jwr is still detached from role")
+}

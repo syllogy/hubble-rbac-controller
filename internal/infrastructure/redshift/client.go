@@ -16,6 +16,7 @@ type Client struct {
 }
 
 var duplicateObjectErrorCode pq.ErrorCode = "42710"
+var objectInUse pq.ErrorCode = "55006"
 
 func NewClient(user string, password string, addr string, database string, sslmode string, port int, externalSchemasSupported bool) (*Client, error) {
 
@@ -256,6 +257,11 @@ usename='%s'
 	return c.stringList(fmt.Sprintf(sql, username))
 }
 
+func generateRedshiftPassword() string {
+	//password must contain a digit and an lowercase and uppercase character
+	return utils.GenerateRandomString(10) + "x0F"
+}
+
 func (c *Client) CreateUser(username string) error {
 
 	users, err := c.Users()
@@ -269,7 +275,7 @@ func (c *Client) CreateUser(username string) error {
 	}
 
 	//Password is set to a random string, it will never be used because we log in using IAM's GetClusterCredentials
-	_, err = c.db.Exec(fmt.Sprintf("CREATE USER %s PASSWORD '%s'", username, utils.GenerateRandomString(10) + "0"))
+	_, err = c.db.Exec(fmt.Sprintf("CREATE USER %s PASSWORD '%s'", username, generateRedshiftPassword()))
 	return err
 }
 
@@ -292,7 +298,7 @@ func (c *Client) Grants(groupName string) ([]string, error) {
 	}
 
 	//The has_schema_privilege function only works on users (not groups), therefore we need to create a dummy user
-	_, err = c.db.Exec(fmt.Sprintf("CREATE USER dummy_%s PASSWORD '%s' IN GROUP %s", groupName, utils.GenerateRandomString(10) + "0", groupName))
+	_, err = c.db.Exec(fmt.Sprintf("CREATE USER dummy_%s PASSWORD '%s' IN GROUP %s", groupName, generateRedshiftPassword(), groupName))
 
 	if err != nil && err.(*pq.Error).Code != duplicateObjectErrorCode {
 		return nil, err

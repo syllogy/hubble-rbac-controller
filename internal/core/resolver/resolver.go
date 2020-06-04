@@ -60,14 +60,15 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				database := cluster.DeclareDatabase(db.Name)
 
 				//Set needed grants on the user group
-				group := database.DeclareGroup(role.Name)
+				group := cluster.DeclareGroup(role.Name)
+				database.DeclareGroup(role.Name)
 				for _,schema := range role.Acl {
 					group.GrantSchema(&redshift.Schema{ Name: string(schema) }) //TODO: is it ok to assume that there is a schema with name = dataset?
 				}
 
 				//Declare a redshift user for the user/role and add it to the group
-				cluster.DeclareUser(userAndRoleUsername)
-				database.DeclareUser(userAndRoleUsername, group)
+				cluster.DeclareUser(userAndRoleUsername, group)
+				database.DeclareUser(userAndRoleUsername)
 
 				for _,glueDb := range role.GrantedGlueDatabases {
 					schema := redshift.ExternalSchema{
@@ -86,11 +87,12 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				cluster := model.RedshiftModel.DeclareCluster(db.ClusterIdentifier)
 				database := cluster.DeclareDatabaseWithOwner(user.Username, userAndRoleUsername)
 
-				group := database.DeclareGroup(role.Name)
+				group := cluster.DeclareGroup(role.Name)
+				database.DeclareGroup(role.Name)
 
 				//Declare a redshift user for the user/role and add it to the group
-				cluster.DeclareUser(userAndRoleUsername)
-				database.DeclareUser(userAndRoleUsername, group)
+				cluster.DeclareUser(userAndRoleUsername, group)
+				database.DeclareUser(userAndRoleUsername)
 
 				for _,glueDb := range role.GrantedGlueDatabases {
 					schema := redshift.ExternalSchema{

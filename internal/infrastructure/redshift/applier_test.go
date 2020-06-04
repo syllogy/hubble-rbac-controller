@@ -38,11 +38,12 @@ func TestApplier_ManageResources(t *testing.T) {
 	assert := assert.New(t)
 
 	eventRecorder := EventRecorder{}
-	unmanagedUsers := []string{"lunarway"}
-	unmanagedSchemas := []string{"public"}
+	excludedUsers := []string{"lunarway"}
+	excludedSchemas := []string{"public"}
+	excludedDatabases := []string{"template0", "postgres"}
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, unmanagedUsers, unmanagedSchemas, &eventRecorder, "478824949770")
+	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
 
 	//Create empty model
 	model := redshift.Model{}
@@ -53,10 +54,11 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	//Create a database with a BI user
 	cluster := model.DeclareCluster("dev")
-	cluster.DeclareUser("jwr_bianalyst")
+	biGroup := cluster.DeclareGroup("bianalyst")
+	cluster.DeclareUser("jwr_bianalyst", biGroup)
 	database := cluster.DeclareDatabase("jwr")
-	biGroup := database.DeclareGroup("bianalyst")
-	database.DeclareUser("jwr_bianalyst", biGroup)
+	database.DeclareGroup("bianalyst")
+	database.DeclareUser("jwr_bianalyst")
 
 	err = applier.Apply(model)
 	assert.NoError(err)
@@ -109,8 +111,8 @@ func TestApplier_ManageResources(t *testing.T) {
 	}, "")
 
 	//Add another BI user
-	cluster.DeclareUser("nra_bianalyst")
-	database.DeclareUser("nra_bianalyst", biGroup)
+	cluster.DeclareUser("nra_bianalyst", biGroup)
+	database.DeclareUser("nra_bianalyst")
 
 	err = applier.Apply(model)
 	assert.NoError(err)
@@ -124,10 +126,11 @@ func TestApplier_ManageResources(t *testing.T) {
 	}, "")
 
 	//Add an AML user
-	amlGroup := database.DeclareGroup("aml")
+	amlGroup := cluster.DeclareGroup("aml")
+	database.DeclareGroup("aml")
 	amlGroup.GrantExternalSchema(&redshift.ExternalSchema{ Name: "lwgoevents", GlueDatabaseName: "lwgoevents" })
-	cluster.DeclareUser("jwr_aml")
-	database.DeclareUser("jwr_aml", amlGroup)
+	cluster.DeclareUser("jwr_aml", amlGroup)
+	database.DeclareUser("jwr_aml")
 
 	err = applier.Apply(model)
 	assert.NoError(err)
@@ -146,18 +149,21 @@ func TestApplier_FailsOnUnmanagedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	eventRecorder := EventRecorder{}
-	unmanagedUsers := []string{"lunarway"}
-	unmanagedSchemas := []string{"public"}
+	excludedUsers := []string{"lunarway"}
+	excludedSchemas := []string{"public"}
+	excludedDatabases := []string{"template0", "postgres"}
+
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, unmanagedUsers, unmanagedSchemas, &eventRecorder, "478824949770")
+	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
 
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")
+	biGroup := cluster.DeclareGroup("bianalyst")
 	database := cluster.DeclareDatabase( "jwr")
-	biGroup := database.DeclareGroup("bianalyst")
-	cluster.DeclareUser("lunarway")
-	database.DeclareUser("lunarway", biGroup)
+	database.DeclareGroup("bianalyst")
+	cluster.DeclareUser("lunarway", biGroup)
+	database.DeclareUser("lunarway")
 
 	err := applier.Apply(model)
 	assert.Error(err)
@@ -168,18 +174,20 @@ func TestApplier_FailsOnUnmanagedSchema(t *testing.T) {
 	assert := assert.New(t)
 
 	eventRecorder := EventRecorder{}
-	unmanagedUsers := []string{"lunarway"}
-	unmanagedSchemas := []string{"public"}
+	excludedUsers := []string{"lunarway"}
+	excludedSchemas := []string{"public"}
+	excludedDatabases := []string{"template0", "postgres"}
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, unmanagedUsers, unmanagedSchemas, &eventRecorder, "478824949770")
+	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
 
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")
+	biGroup := cluster.DeclareGroup("bianalyst")
 	database := cluster.DeclareDatabase("jwr")
-	biGroup := database.DeclareGroup("bianalyst")
-	cluster.DeclareUser("jwr_bianalyst")
-	database.DeclareUser("jwr_bianalyst", biGroup)
+	database.DeclareGroup("bianalyst")
+	cluster.DeclareUser("jwr_bianalyst", biGroup)
+	database.DeclareUser("jwr_bianalyst")
 	biGroup.GrantSchema(&redshift.Schema{ Name: "public" })
 
 	err := applier.Apply(model)

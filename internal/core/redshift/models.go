@@ -5,10 +5,8 @@ import (
 	"strings"
 )
 
-type Group struct {
+type DatabaseGroup struct {
 	Name string
-	GrantedSchemas []*Schema
-	GrantedExternalSchemas []*ExternalSchema
 }
 
 type Schema struct {
@@ -22,16 +20,23 @@ type ExternalSchema struct {
 
 type DatabaseUser struct {
 	Name     string
-	MemberOf *Group
 }
 
 type User struct {
 	Name     string
+	MemberOf *Group
+}
+
+type Group struct {
+	Name     string
+	GrantedSchemas []*Schema
+	GrantedExternalSchemas []*ExternalSchema
 }
 
 type Cluster struct {
 	Identifier string
 	Users []*User
+	Groups []*Group
 	Databases []*Database
 }
 
@@ -40,7 +45,7 @@ type Database struct {
 	Name string
 	Owner *string
 	Users []*DatabaseUser
-	Groups []*Group
+	Groups []*DatabaseGroup
 }
 
 type Model struct {
@@ -98,16 +103,37 @@ func (c *Cluster) LookupUser(username string) *User {
 	return nil
 }
 
-func (c *Cluster) DeclareUser(name string) *User {
+func (c *Cluster) DeclareUser(name string, memberOf *Group) *User {
 	existing := c.LookupUser(name)
 	if existing != nil {
 		return existing
 	}
 
-	newUser := &User{ Name: strings.ToLower(name) }
+	newUser := &User{ Name: strings.ToLower(name), MemberOf: memberOf }
 	c.Users = append(c.Users, newUser)
 	return newUser
 }
+
+func (c *Cluster) LookupGroup(name string) *Group {
+	for _,user := range c.Groups {
+		if user.Name == name {
+			return user
+		}
+	}
+	return nil
+}
+
+func (c *Cluster) DeclareGroup(name string) *Group {
+	existing := c.LookupGroup(name)
+	if existing != nil {
+		return existing
+	}
+
+	newGroup := &Group{ Name: strings.ToLower(name) }
+	c.Groups = append(c.Groups, newGroup)
+	return newGroup
+}
+
 
 func (c *Cluster) LookupDatabase(name string) *Database {
 	for _,db := range c.Databases {
@@ -138,7 +164,7 @@ func (c *Cluster) declareDatabase(name string, owner *string) *Database {
 	return newDatabase
 }
 
-func (d *Database) LookupGroup(name string) *Group {
+func (d *Database) LookupGroup(name string) *DatabaseGroup {
 	for _,group := range d.Groups {
 		if group.Name == strings.ToLower(name) {
 			return group
@@ -147,13 +173,13 @@ func (d *Database) LookupGroup(name string) *Group {
 	return nil
 }
 
-func (d *Database) DeclareGroup(name string) *Group {
+func (d *Database) DeclareGroup(name string) *DatabaseGroup {
 	existing := d.LookupGroup(name)
 	if existing != nil {
 		return existing
 	}
 
-	newGroup := &Group { Name: strings.ToLower(name) }
+	newGroup := &DatabaseGroup{ Name: strings.ToLower(name) }
 	d.Groups = append(d.Groups, newGroup)
 	return newGroup
 }
@@ -167,13 +193,13 @@ func (d *Database) LookupUser(name string) *DatabaseUser {
 	return nil
 }
 
-func (d *Database) DeclareUser(name string, of *Group) *DatabaseUser {
+func (d *Database) DeclareUser(name string) *DatabaseUser {
 	existing := d.LookupUser(name)
 	if existing != nil {
 		return existing
 	}
 
-	newUser := &DatabaseUser{ Name: strings.ToLower(name), MemberOf: of }
+	newUser := &DatabaseUser{ Name: strings.ToLower(name) }
 	d.Users = append(d.Users, newUser)
 	return newUser
 }

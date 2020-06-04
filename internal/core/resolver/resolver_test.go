@@ -157,7 +157,7 @@ func Test_BiAnalyst(t *testing.T) {
 	database := cluster.LookupDatabase(data.unstable.Name)
 	assert.NotNil(database, "database is registered")
 
-	group := database.LookupGroup(data.biAnalystRole.Name)
+	group := cluster.LookupGroup(data.biAnalystRole.Name)
 	assert.NotNil(group, "a user group with the name of the role has been registered")
 	assert.Contains(group.Granted(),"bi", "group has been granted access to the expected schemas")
 

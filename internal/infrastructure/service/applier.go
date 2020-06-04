@@ -34,13 +34,14 @@ type Applier struct {
 	iamApplier *iam.Applier
 }
 
-func NewApplier(clientGroup *redshift.ClientGroup, iamClient *iam.Client, googleClient *google.Client, unmanagedUsers []string, awsAccountId string, awsRegion string) *Applier {
+func NewApplier(clientGroup *redshift.ClientGroup, iamClient *iam.Client, googleClient *google.Client, excludedUsers []string, awsAccountId string, awsRegion string) *Applier {
 
-	unmanagedSchemas := []string{"public"}
+	excludedSchemas := []string{"public"}
+	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
 
 	return &Applier{
 		resolver: &resolver.Resolver{},
-		redshiftApplier: redshift.NewApplier(clientGroup, unmanagedUsers, unmanagedSchemas, &RedshiftEventRecorder{}, awsAccountId),
+		redshiftApplier: redshift.NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &RedshiftEventRecorder{}, awsAccountId),
 		iamApplier: iam.NewApplier(iamClient, awsAccountId, awsRegion, &IamEventRecorder{}),
 		googleApplier: google.NewApplier(googleClient),
 	}
