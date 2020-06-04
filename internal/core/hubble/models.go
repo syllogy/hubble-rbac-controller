@@ -19,25 +19,25 @@ type GlueDatabase struct {
 type User struct {
 	Username string
 	Email string
-	AssignedTo []Role
+	AssignedTo []*Role
 }
 
 type Role struct {
 	Name string
-	GrantedDatabases []Database
-	GrantedDevDatabases []DevDatabase
-	GrantedGlueDatabases []GlueDatabase
+	GrantedDatabases []*Database
+	GrantedDevDatabases []*DevDatabase
+	GrantedGlueDatabases []*GlueDatabase
 	Acl []DataSet
-	Policies []PolicyReference
+	Policies []*PolicyReference
 }
 
 type Model struct {
-	Databases []Database
-	DevDatabases []DevDatabase
-	GlueDatabases []GlueDatabase
-	Users []User
-	Roles []Role
-	Policies []PolicyReference
+	Databases []*Database
+	DevDatabases []*DevDatabase
+	GlueDatabases []*GlueDatabase
+	Users []*User
+	Roles []*Role
+	Policies []*PolicyReference
 }
 
 type PolicyReference struct {

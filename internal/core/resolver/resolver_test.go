@@ -39,31 +39,31 @@ func generateTestData() TestData {
 
 	biAnalystRole := hubble.Role{
 		Name:"bi_analyst",
-		GrantedDatabases:[]hubble.Database{unstable},
-		GrantedDevDatabases:[]hubble.DevDatabase{},
-		GrantedGlueDatabases:[]hubble.GlueDatabase{},
+		GrantedDatabases:[]*hubble.Database{&unstable},
+		GrantedDevDatabases:[]*hubble.DevDatabase{},
+		GrantedGlueDatabases:[]*hubble.GlueDatabase{},
 		Acl:[]hubble.DataSet{"bi", "core"},
 	}
 
 	dbtDeveloperRole := hubble.Role{
 		Name:"dbt_developer",
-		GrantedDatabases:[]hubble.Database{},
-		GrantedDevDatabases:[]hubble.DevDatabase{dev},
-		GrantedGlueDatabases:[]hubble.GlueDatabase{},
+		GrantedDatabases:[]*hubble.Database{},
+		GrantedDevDatabases:[]*hubble.DevDatabase{&dev},
+		GrantedGlueDatabases:[]*hubble.GlueDatabase{},
 		Acl:[]hubble.DataSet{"bi", "core"},
-		Policies: []hubble.PolicyReference{allowAccessToTmpBucketPolicy},
+		Policies: []*hubble.PolicyReference{&allowAccessToTmpBucketPolicy},
 	}
 
 	biAnalyst := hubble.User{
 		Username:"jwr",
 		Email:"jwr@lunar.app",
-		AssignedTo:[]hubble.Role{biAnalystRole},
+		AssignedTo:[]*hubble.Role{&biAnalystRole},
 	}
 
 	dbtDeveloper := hubble.User{
 		Username:"nra",
 		Email:"nra@lunar.app",
-		AssignedTo:[]hubble.Role{dbtDeveloperRole},
+		AssignedTo:[]*hubble.Role{&dbtDeveloperRole},
 	}
 
 
@@ -86,12 +86,12 @@ func Test_DbtDeveloper(t *testing.T) {
 	data := generateTestData()
 
 	model := hubble.Model{
-		Databases: []hubble.Database{data.unstable},
-		DevDatabases: []hubble.DevDatabase{data.dev},
-		GlueDatabases: []hubble.GlueDatabase{data.lwgoeventsDatabase},
-		Users:         []hubble.User{data.dbtDeveloper},
-		Roles:         []hubble.Role{data.dbtDeveloperRole},
-		Policies: []hubble.PolicyReference{data.allowAccessToTmpBucketPolicy},
+		Databases: []*hubble.Database{&data.unstable},
+		DevDatabases: []*hubble.DevDatabase{&data.dev},
+		GlueDatabases: []*hubble.GlueDatabase{&data.lwgoeventsDatabase},
+		Users:         []*hubble.User{&data.dbtDeveloper},
+		Roles:         []*hubble.Role{&data.dbtDeveloperRole},
+		Policies: []*hubble.PolicyReference{&data.allowAccessToTmpBucketPolicy},
 	}
 
 	resolver := Resolver{}
@@ -139,11 +139,11 @@ func Test_BiAnalyst(t *testing.T) {
 	data := generateTestData()
 
 	model := hubble.Model{
-		Databases: []hubble.Database{data.unstable},
-		DevDatabases: []hubble.DevDatabase{},
-		GlueDatabases: []hubble.GlueDatabase{},
-		Users:         []hubble.User{data.biAnalyst},
-		Roles:         []hubble.Role{data.biAnalystRole},
+		Databases: []*hubble.Database{&data.unstable},
+		DevDatabases: []*hubble.DevDatabase{},
+		GlueDatabases: []*hubble.GlueDatabase{},
+		Users:         []*hubble.User{&data.biAnalyst},
+		Roles:         []*hubble.Role{&data.biAnalystRole},
 	}
 
 	resolver := Resolver{}
