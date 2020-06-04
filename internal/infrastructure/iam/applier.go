@@ -194,30 +194,42 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 		policyName :=  desiredPolicy.DatabaseUsername
 		attachedPolicy := applier.client.lookupAttachedPolicy(attachedPolicies,policyName)
 
-		if attachedPolicy != nil {
-			if desiredPolicyDocument == policyDocuments[policyName] {
-				log.Infof("No changes detected in policy %s", policyName)
-			} else {
-				applier.eventListener.Handle(PolicyUpdated, policyName)
-				log.Infof("Updating policy %s attached to %s", policyName, *currentRole.RoleName)
+		if len(desiredPolicy.Databases) == 0 {
+			if attachedPolicy != nil {
+				applier.eventListener.Handle(PolicyDeleted, policyName)
+				log.Infof("Deleting policy %s attached to %s", policyName, *currentRole.RoleName)
 
 				err := applier.detachAndDeletePolicy(currentRole, attachedPolicy)
 				if err != nil {
 					return fmt.Errorf("unable to detach and delete policy %s: %w", *attachedPolicy.PolicyName, err)
 				}
+			}
+		} else {
+			if attachedPolicy != nil {
+				if desiredPolicyDocument == policyDocuments[policyName] {
+					log.Infof("No changes detected in policy %s", policyName)
+				} else {
+					applier.eventListener.Handle(PolicyUpdated, policyName)
+					log.Infof("Updating policy %s attached to %s", policyName, *currentRole.RoleName)
 
-				err = applier.createAndAttachPolicy(currentRole, policyName, desiredPolicyDocument)
+					err := applier.detachAndDeletePolicy(currentRole, attachedPolicy)
+					if err != nil {
+						return fmt.Errorf("unable to detach and delete policy %s: %w", *attachedPolicy.PolicyName, err)
+					}
+
+					err = applier.createAndAttachPolicy(currentRole, policyName, desiredPolicyDocument)
+					if err != nil {
+						return fmt.Errorf("unable to create and attach policy %s: %w", policyName, err)
+					}
+				}
+			} else {
+				applier.eventListener.Handle(PolicyCreated, policyName)
+				log.Infof("Creating policy %s and attaching to %s", policyName, *currentRole.RoleName)
+				err := applier.createAndAttachPolicy(currentRole, policyName, desiredPolicyDocument)
+
 				if err != nil {
 					return fmt.Errorf("unable to create and attach policy %s: %w", policyName, err)
 				}
-			}
-		} else {
-			applier.eventListener.Handle(PolicyCreated, policyName)
-			log.Infof("Creating policy %s and attaching to %s", policyName, *currentRole.RoleName)
-			err := applier.createAndAttachPolicy(currentRole, policyName, desiredPolicyDocument)
-
-			if err != nil {
-				return fmt.Errorf("unable to create and attach policy %s: %w", policyName, err)
 			}
 		}
 	}
@@ -240,7 +252,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 	for _, attachedPolicy := range unmanagedAttachedPolicies {
 		if desiredRole.LookupReferencedPolicy(*attachedPolicy.PolicyArn) == nil {
 
-			err := applier.client.detachPolicy(currentRole, attachedPolicy)
+			err := applier.client.DetachPolicy(currentRole, attachedPolicy)
 
 			if err != nil {
 				return fmt.Errorf("failed detaching policy %s: %w", *attachedPolicy.PolicyName, err)
