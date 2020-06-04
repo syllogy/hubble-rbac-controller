@@ -78,7 +78,7 @@ func (c *Client) stringList(sql string) ([]string, error) {
 		return nil, err
 	}
 
-	var result []string
+	result := []string{}
 	for rows.Next() {
 		var item string
 		err = rows.Scan(&item)
