@@ -276,7 +276,7 @@ func (client *Client) attachPolicy(role *iam.Role, policy *iam.Policy) error {
 	return nil
 }
 
-func (client *Client) detachPolicy(role *iam.Role, policy *iam.AttachedPolicy) error {
+func (client *Client) DetachPolicy(role *iam.Role, policy *iam.AttachedPolicy) error {
 
 	c := iam.New(client.session)
 

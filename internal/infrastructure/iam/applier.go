@@ -123,7 +123,7 @@ func (applier *Applier) lookupAttachedPolicy(roles []*iam.AttachedPolicy, name s
 
 func (applier *Applier) detachAndDeletePolicy(role *iam.Role, attachedPolicy *iam.AttachedPolicy) error {
 
-	err := applier.client.detachPolicy(role, attachedPolicy)
+	err := applier.client.DetachPolicy(role, attachedPolicy)
 
 	if err != nil {
 		return fmt.Errorf("failed detaching policy %s: %w", *attachedPolicy.PolicyName, err)
