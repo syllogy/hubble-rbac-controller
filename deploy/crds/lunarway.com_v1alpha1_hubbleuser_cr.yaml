@@ -1,0 +1,9 @@
+apiVersion: lunarway.com/v1alpha1
+kind: HubbleUser
+metadata:
+  name: jwr
+  namespace: datascience
+spec:
+  name: jwr
+  roles:
+    - bi-dbt-developer
