@@ -1,0 +1,7 @@
+apiVersion: lunarway/v1alpha1
+kind: HubbleUser
+metadata:
+  name: example-hubbleuser
+spec:
+  # Add fields here
+  size: 3
