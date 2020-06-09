@@ -2,14 +2,8 @@ package hubbleuser
 
 import (
 	"context"
-	"fmt"
-	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
-	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/service"
-	"io/ioutil"
-	"os"
-
 	lunarwayv1alpha1 "github.com/lunarway/hubble-rbac-controller/pkg/apis/lunarway/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var ServiceAccountFilePath = os.Getenv("GOOGLE_CREDENTIALS_FILE_PATH")
+//var ServiceAccountFilePath = os.Getenv("GOOGLE_CREDENTIALS_FILE_PATH")
 const accountId = "478824949770"
 const region = "eu-west-1"
 var localhostCredentials redshift.ClusterCredentials
@@ -49,21 +43,22 @@ func Add(mgr manager.Manager) error {
 	excludedUsers := []string{
 		"lunarway",
 	}
-	clientGroup := redshift.NewClientGroup(map[string]*redshift.ClusterCredentials{"hubble": &localhostCredentials})
+	//clientGroup := redshift.NewClientGroup(map[string]*redshift.ClusterCredentials{"hubble": &localhostCredentials})
+	//
+	//session := iam.LocalStackSessionFactory{}.CreateSession()
+	//iamClient := iam.New(session)
+	//
+	//jsonCredentials, err := ioutil.ReadFile(ServiceAccountFilePath)
+	//if err != nil {
+	//	return fmt.Errorf("unable to load google credentials: %v", err)
+	//}
+	//googleClient, err := google.NewGoogleClient(jsonCredentials, "jwr@chatjing.com", accountId)
+	//if err != nil {
+	//	return fmt.Errorf("unable to initialize google client: %v", err)
+	//}
 
-	session := iam.LocalStackSessionFactory{}.CreateSession()
-	iamClient := iam.New(session)
-
-	jsonCredentials, err := ioutil.ReadFile(ServiceAccountFilePath)
-	if err != nil {
-		return fmt.Errorf("unable to load google credentials: %v", err)
-	}
-	googleClient, err := google.NewGoogleClient(jsonCredentials, "jwr@chatjing.com", accountId)
-	if err != nil {
-		return fmt.Errorf("unable to initialize google client: %v", err)
-	}
-
-	applier := service.NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region)
+	//applier := service.NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region)
+	applier := service.NewApplier(nil, nil, nil, excludedUsers, accountId, region)
 
 	return add(mgr, newReconciler(mgr, applier))
 }
@@ -175,7 +170,7 @@ func (r *ReconcileHubbleUser) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	err = r.applier.Apply(model, false)
+	err = r.applier.Apply(model, true)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
