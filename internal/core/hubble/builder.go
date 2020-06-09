@@ -35,14 +35,22 @@ func (m *Model) AddDatabase(clusterIdentifier string, name string) *Database {
 	return &database
 }
 
-func (m *Model) AddDatasource(shortName string, name string) *GlueDatabase {
-	database := GlueDatabase{
-		Name: name,
-		ShortName: shortName,
+func (m *Model) AddDevDatabase(clusterIdentifier string) *DevDatabase {
+	database := DevDatabase{
+		ClusterIdentifier: clusterIdentifier,
 	}
-	m.GlueDatabases = append(m.GlueDatabases, &database)
+	m.DevDatabases = append(m.DevDatabases, &database)
 
 	return &database
+}
+
+func (m *Model) AddPolicyReference(arn string) *PolicyReference {
+	policy := PolicyReference{
+		Arn: arn,
+	}
+	m.Policies = append(m.Policies, &policy)
+
+	return &policy
 }
 
 func (r *Role) GrantAccess(database *Database) {

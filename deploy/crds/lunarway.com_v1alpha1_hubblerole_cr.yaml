@@ -1,0 +1,18 @@
+apiVersion: lunarway.com/v1alpha1
+kind: HubbleRole
+metadata:
+  name: bi-analyst
+  namespace: datascience
+spec:
+  name: BiAnalyst
+  databases:
+    - stable
+  devDatabases:
+    - dev
+  datalakeGrants:
+    - lw-go-events
+    - eventstreams
+  datawarehouseGrants:
+    - public_bi
+  policies:
+    - access-to-tmp-bucket

@@ -1,0 +1,8 @@
+apiVersion: lunarway.com/v1alpha1
+kind: HubblePolicyReference
+metadata:
+  name: access-to-tmp-bucket
+  namespace: datascience
+spec:
+  name: access-to-tmp-bucket
+  arn: "arn:aws:iam::478824949770:policy/access-to-tmp-bucket"

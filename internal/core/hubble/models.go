@@ -34,7 +34,7 @@ type Role struct {
 type Model struct {
 	Databases []*Database
 	DevDatabases []*DevDatabase
-	GlueDatabases []*GlueDatabase
+	//GlueDatabases []*GlueDatabase
 	Users []*User
 	Roles []*Role
 	Policies []*PolicyReference
