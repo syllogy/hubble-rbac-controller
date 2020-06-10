@@ -4,6 +4,7 @@ package service
 
 import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
@@ -82,6 +83,8 @@ func TestApplier_Apply(t *testing.T) {
 
 	assert := assert.New(t)
 
+	logger := infrastructure.NewLogger(t)
+
 	excludedUsers := []string{
 		"lunarway",
 	}
@@ -100,7 +103,7 @@ func TestApplier_Apply(t *testing.T) {
 		localhostCredentials.Username,
 		localhostCredentials.Password,
 		localhostCredentials.Host,
-		"prod",
+		"lunarway",
 		localhostCredentials.Sslmode,
 		localhostCredentials.Port,
 		localhostCredentials.ExternalSchemasSupported,
@@ -113,7 +116,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	iamExpected := iam.IAMState{}
 
-	applier := NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region)
+	applier := NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region, logger)
 
 	model := hubble.Model{}
 	user := model.AddUser("jwr", "jwr@lunar.app")
@@ -122,7 +125,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Create database")
 	database := model.AddDatabase("hubble", "prod")
-	err = applier.Apply(model, false)
+	err = applier.Apply(model,false)
 	failOnError(err)
 
 	redshiftActual := redshift.FetchState(redshiftClient)
@@ -132,7 +135,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Create role")
 	role := model.AddRole("BiAnalyst", []hubble.DataSet{"public_bi"})
-	err = applier.Apply(model, false)
+	err = applier.Apply(model,false)
 	failOnError(err)
 
 	redshiftActual = redshift.FetchState(redshiftClient)
@@ -143,7 +146,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Grant role access to database")
 	role.GrantAccess(database)
-	err = applier.Apply(model, false)
+	err = applier.Apply(model,false)
 	failOnError(err)
 
 	redshiftActual = redshift.FetchState(redshiftClient)
@@ -153,7 +156,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Assign user to role")
 	user.Assign(role)
-	err = applier.Apply(model, false)
+	err = applier.Apply(model,false)
 	failOnError(err)
 
 	redshiftExpected.Users = []string{"lunarway", "jwr_bianalyst"}
@@ -169,7 +172,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Revoke access")
 	role.RevokeAccess(database)
-	err = applier.Apply(model, false)
+	err = applier.Apply(model,false)
 	failOnError(err)
 
 	redshiftExpected = redshift.NewRedshiftState()
@@ -186,7 +189,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Unassign user from role")
 	user.Unassign(role)
-	err = applier.Apply(model, false)
+	err = applier.Apply(model,false)
 	failOnError(err)
 
 	redshiftActual = redshift.FetchState(redshiftClient)

@@ -4,6 +4,7 @@ package redshift
 
 import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -39,13 +40,14 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	assert := assert.New(t)
 
+	logger := infrastructure.NewLogger(t)
 	eventRecorder := EventRecorder{}
 	excludedUsers := []string{"lunarway"}
 	excludedSchemas := []string{"public"}
 	excludedDatabases := []string{"template0", "postgres"}
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
+	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770", logger)
 
 	//Create empty model
 	model := redshift.Model{}
@@ -150,6 +152,7 @@ func TestApplier_FailsOnExcludedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
+	logger := infrastructure.NewLogger(t)
 	eventRecorder := EventRecorder{}
 	excludedUsers := []string{"lunarway"}
 	excludedSchemas := []string{"public"}
@@ -157,7 +160,7 @@ func TestApplier_FailsOnExcludedUser(t *testing.T) {
 
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
+	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770", logger)
 
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")
@@ -175,13 +178,14 @@ func TestApplier_FailsOnExcludedSchema(t *testing.T) {
 
 	assert := assert.New(t)
 
+	logger := infrastructure.NewLogger(t)
 	eventRecorder := EventRecorder{}
 	excludedUsers := []string{"lunarway"}
 	excludedSchemas := []string{"public"}
 	excludedDatabases := []string{"template0", "postgres"}
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
+	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770", logger)
 
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")

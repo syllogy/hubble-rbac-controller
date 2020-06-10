@@ -5,6 +5,7 @@ go 1.13
 require (
 	cloud.google.com/go v0.38.0
 	github.com/aws/aws-sdk-go v1.17.7
+	github.com/go-logr/logr v0.1.0
 	github.com/go-pg/pg v8.0.6+incompatible
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/lib/pq v1.3.0

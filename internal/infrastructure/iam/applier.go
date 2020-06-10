@@ -3,8 +3,8 @@ package iam
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/go-logr/logr"
 	iamCore "github.com/lunarway/hubble-rbac-controller/internal/core/iam"
-	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -47,14 +47,16 @@ type Applier struct {
 	region string
 	client *Client
 	eventListener ApplyEventLister
+	logger logr.Logger
 }
 
-func NewApplier(client *Client, accountId string, region string, eventListener ApplyEventLister) *Applier {
+func NewApplier(client *Client, accountId string, region string, eventListener ApplyEventLister, logger logr.Logger) *Applier {
 	return &Applier{
 		accountId: accountId,
 		region: region,
 		client:client,
 		eventListener:eventListener,
+		logger: logger,
 	}
 }
 
@@ -197,7 +199,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 		if len(desiredPolicy.Databases) == 0 {
 			if attachedPolicy != nil {
 				applier.eventListener.Handle(PolicyDeleted, policyName)
-				log.Infof("Deleting policy %s attached to %s", policyName, *currentRole.RoleName)
+				applier.logger.Info(fmt.Sprintf("Deleting policy %s attached to %s", policyName, *currentRole.RoleName))
 
 				err := applier.detachAndDeletePolicy(currentRole, attachedPolicy)
 				if err != nil {
@@ -207,10 +209,10 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 		} else {
 			if attachedPolicy != nil {
 				if desiredPolicyDocument == policyDocuments[policyName] {
-					log.Infof("No changes detected in policy %s", policyName)
+					applier.logger.Info(fmt.Sprintf("No changes detected in policy %s", policyName))
 				} else {
 					applier.eventListener.Handle(PolicyUpdated, policyName)
-					log.Infof("Updating policy %s attached to %s", policyName, *currentRole.RoleName)
+					applier.logger.Info(fmt.Sprintf("Updating policy %s attached to %s", policyName, *currentRole.RoleName))
 
 					err := applier.detachAndDeletePolicy(currentRole, attachedPolicy)
 					if err != nil {
@@ -224,7 +226,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 				}
 			} else {
 				applier.eventListener.Handle(PolicyCreated, policyName)
-				log.Infof("Creating policy %s and attaching to %s", policyName, *currentRole.RoleName)
+				applier.logger.Info(fmt.Sprintf("Creating policy %s and attaching to %s", policyName, *currentRole.RoleName))
 				err := applier.createAndAttachPolicy(currentRole, policyName, desiredPolicyDocument)
 
 				if err != nil {
@@ -237,7 +239,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 	for _, attachedPolicy := range attachedPolicies {
 		if desiredRole.LookupDatabaseLoginPolicyForUsername(*attachedPolicy.PolicyName) == nil {
 			applier.eventListener.Handle(PolicyDeleted, *attachedPolicy.PolicyName)
-			log.Infof("Deleting policy %s attached to %s", *attachedPolicy.PolicyName, *currentRole.RoleName)
+			applier.logger.Info(fmt.Sprintf("Deleting policy %s attached to %s", *attachedPolicy.PolicyName, *currentRole.RoleName))
 
 			err = applier.detachAndDeletePolicy(currentRole, attachedPolicy)
 
@@ -273,7 +275,7 @@ func (applier *Applier) deleteRole(role *iam.Role) error {
 
 	for _, attachedPolicy := range attachedPolicies {
 		applier.eventListener.Handle(PolicyDeleted, *attachedPolicy.PolicyName)
-		log.Infof("Deleting policy %s attached to %s", *attachedPolicy.PolicyName, *role.RoleName)
+		applier.logger.Info(fmt.Sprintf("Deleting policy %s attached to %s", *attachedPolicy.PolicyName, *role.RoleName))
 
 		err = applier.detachAndDeletePolicy(role, attachedPolicy)
 
@@ -306,7 +308,7 @@ func (applier *Applier) Apply(model iamCore.Model) error {
 
 		if existingRole == nil {
 			applier.eventListener.Handle(RoleCreated, desiredRole.Name)
-			log.Infof("Creating role %s", desiredRole.Name)
+			applier.logger.Info(fmt.Sprintf("Creating role %s", desiredRole.Name))
 			existingRole, err = applier.createRole(desiredRole.Name)
 
 			if err != nil {
@@ -315,7 +317,7 @@ func (applier *Applier) Apply(model iamCore.Model) error {
 		}
 
 		applier.eventListener.Handle(RoleUpdated, desiredRole.Name)
-		log.Infof("Updating role %s", desiredRole.Name)
+		applier.logger.Info(fmt.Sprintf("Updating role %s", desiredRole.Name))
 		err = applier.updateRole(desiredRole, existingRole, policyDocuments)
 		if err != nil {
 			return fmt.Errorf("failed when updating role %s: %w", desiredRole.Name, err)
@@ -325,7 +327,7 @@ func (applier *Applier) Apply(model iamCore.Model) error {
 	for _, existingRole := range existingRoles {
 		if model.LookupRole(*existingRole.RoleName) == nil {
 			applier.eventListener.Handle(RoleDeleted, *existingRole.RoleName)
-			log.Infof("Deleting role %s", *existingRole.RoleName)
+			applier.logger.Info(fmt.Sprintf("Deleting role %s", *existingRole.RoleName))
 			err = applier.deleteRole(existingRole)
 
 			if err != nil {

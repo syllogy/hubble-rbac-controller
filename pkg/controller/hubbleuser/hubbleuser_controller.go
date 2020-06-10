@@ -58,7 +58,7 @@ func Add(mgr manager.Manager) error {
 	//}
 
 	//applier := service.NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region)
-	applier := service.NewApplier(nil, nil, nil, excludedUsers, accountId, region)
+	applier := service.NewApplier(nil, nil, nil, excludedUsers, accountId, region, log)
 
 	return add(mgr, newReconciler(mgr, applier))
 }
@@ -170,7 +170,7 @@ func (r *ReconcileHubbleUser) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	err = r.applier.Apply(model, true)
+	err = r.applier.Apply(model,true)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

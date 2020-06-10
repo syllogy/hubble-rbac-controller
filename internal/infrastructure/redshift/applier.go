@@ -2,6 +2,7 @@ package redshift
 
 import (
 	"fmt"
+	"github.com/go-logr/logr"
 	"github.com/lib/pq"
 	redshiftCore "github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 	"github.com/prometheus/common/log"
@@ -90,9 +91,10 @@ type Applier struct {
 	excludedDatabases []string //excluded database will not have their grants managed
 	eventListener   ApplyEventLister
 	awsAccountId    string
+	logger logr.Logger
 }
 
-func NewApplier(clientGroup *ClientGroup, excludedDatabases []string, excludedUsers []string, excludedSchemas []string, eventListener ApplyEventLister, awsAccountId string) *Applier {
+func NewApplier(clientGroup *ClientGroup, excludedDatabases []string, excludedUsers []string, excludedSchemas []string, eventListener ApplyEventLister, awsAccountId string, logger logr.Logger) *Applier {
 	return &Applier{
 		clientGroup:     clientGroup,
 		excludedDatabases: excludedDatabases,
@@ -100,6 +102,7 @@ func NewApplier(clientGroup *ClientGroup, excludedDatabases []string, excludedUs
 		excludedUsers:   excludedUsers,
 		eventListener:   eventListener,
 		awsAccountId:    awsAccountId,
+		logger: logger,
 	}
 }
 
@@ -283,7 +286,7 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 	for _, cluster := range model.Clusters {
 
 		//Ensure that all managed databases exist
-		log.Info("Creating databases")
+		applier.logger.Info("Creating databases")
 		for _, managedDatabase := range cluster.Databases {
 			err := applier.createDatabase(managedDatabase)
 
@@ -311,11 +314,11 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 
 		//for all the databases that are unmanaged we need to make sure that no groups have dangling grants on the schemas in those databases,
 		//if any do we won't be able to remove them if they ever become unmanaged
-		log.Info("Revoking dangling grants in unmanaged databases")
+		applier.logger.Info("Revoking dangling grants in unmanaged databases")
 		for _, database := range databases {
 			if !applier.isDatabaseExcluded(database) && cluster.LookupDatabase(database) == nil {
 
-				log.Infof("Revoking dangling grants in database %s for %s", database, cluster.Identifier)
+				applier.logger.Info(fmt.Sprintf("Revoking dangling grants in database %s for %s", database, cluster.Identifier))
 				databaseClient, err := applier.clientGroup.Database(cluster.Identifier, database)
 
 				if err != nil {
@@ -331,7 +334,7 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		}
 
 		//Ensure that all managed groups exists
-		log.Info("Creating groups")
+		applier.logger.Info("Creating groups")
 		for _, managedGroup := range cluster.Groups {
 			err = client.CreateGroup(managedGroup.Name)
 
@@ -342,7 +345,7 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		}
 
 		//Ensure that all managed users exists
-		log.Info("Creating users")
+		applier.logger.Info("Creating users")
 		for _, managedUser := range cluster.Users {
 			if applier.isUserExcluded(managedUser.Name) {
 				return fmt.Errorf("user %s has been explicitly excluded and cannot be managed", managedUser.Name)
@@ -357,7 +360,7 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 			applier.eventListener.Handle(EnsureUserExists, managedUser.Name)
 		}
 
-		log.Info("Updating grants for groups")
+		applier.logger.Info("Updating grants for groups")
 		groups, err = client.Groups()
 		if err != nil {
 			return fmt.Errorf("unable to list groups for %s: %w", cluster.Identifier, err)
@@ -390,7 +393,7 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		}
 
 		//Ensure that users are members of the desired group
-		log.Info("Updating group memberships")
+		applier.logger.Info("Updating group memberships")
 		for _,managedUser := range cluster.Users {
 			alreadyPartOf, err := client.PartOf(managedUser.Name)
 
@@ -419,7 +422,7 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		}
 
 		//We remove all users that are not part of the model from the cluster
-		log.Info("Deleting unmanaged users")
+		applier.logger.Info("Deleting unmanaged users")
 		users, err := client.Users()
 		if err != nil {
 			return fmt.Errorf("unable to list users for %s: %w", cluster.Identifier, err)
@@ -441,7 +444,7 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		}
 
 		//We remove all groups that are not part of the model from the cluster
-		log.Info("Deleting unmanaged groups")
+		applier.logger.Info("Deleting unmanaged groups")
 		groups, err = client.Groups()
 		if err != nil {
 			return fmt.Errorf("unable to list groups for %s: %w", cluster.Identifier, err)
