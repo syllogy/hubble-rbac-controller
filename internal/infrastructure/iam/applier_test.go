@@ -4,6 +4,7 @@ package iam
 
 import (
 	iamCore "github.com/lunarway/hubble-rbac-controller/internal/core/iam"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -33,12 +34,13 @@ func init() {
 	log.SetLevel(log.InfoLevel)
 }
 
-func setUp() TestContext {
+func setUp(t *testing.T) TestContext {
 
 	session := LocalStackSessionFactory{}.CreateSession()
 	iamClient := New(session)
 	eventRecorder := EventRecorder{}
-	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
+	logger := infrastructure.NewLogger(t)
+	applier := NewApplier(iamClient, accountId, region, &eventRecorder, logger)
 
 	roles, err := iamClient.ListRoles()
 	failOnError(err)
@@ -67,7 +69,7 @@ func setUp() TestContext {
 
 func TestApplier_NoRoles(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
@@ -84,7 +86,7 @@ func TestApplier_NoRoles(t *testing.T) {
 
 func TestApplier_SingleRole(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
@@ -119,7 +121,7 @@ func TestApplier_SingleRole(t *testing.T) {
 
 func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
@@ -158,7 +160,7 @@ func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 
 func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
@@ -204,7 +206,7 @@ func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 
 func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
@@ -264,7 +266,7 @@ func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
 func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
@@ -308,7 +310,7 @@ func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
 
 func TestApplier_RoleWithNoUsers(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
@@ -328,7 +330,8 @@ func TestApplier_RoleWithNoUsers(t *testing.T) {
 
 
 func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
-	context := setUp()
+
+	context := setUp(t)
 
 	assert := assert.New(t)
 

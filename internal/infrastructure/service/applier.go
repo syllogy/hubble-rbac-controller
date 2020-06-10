@@ -1,29 +1,29 @@
 package service
 
 import (
-	"encoding/json"
-	"fmt"
+	"github.com/go-logr/logr"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/resolver"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
-	log "github.com/sirupsen/logrus"
 )
 
 
 type RedshiftEventRecorder struct {
+	logger logr.Logger
 }
 
 func (e *RedshiftEventRecorder) Handle(eventType redshift.ApplyEventType, name string) {
-	log.Infof("Event %s:%s occurred", eventType.ToString(), name)
+	e.logger.Info("Event occurred", "eventType", eventType.ToString(), "name", name)
 }
 
 type IamEventRecorder struct {
+	logger logr.Logger
 }
 
 func (e *IamEventRecorder) Handle(eventType iam.ApplyEventType, name string) {
-	log.Infof("Event %s:%s occurred", eventType.ToString(), name)
+	e.logger.Info("Event occurred", "eventType", eventType.ToString(), "name", name)
 }
 
 
@@ -32,29 +32,26 @@ type Applier struct {
 	googleApplier *google.Applier
 	redshiftApplier *redshift.Applier
 	iamApplier *iam.Applier
+	logger logr.Logger
 }
 
-func NewApplier(clientGroup *redshift.ClientGroup, iamClient *iam.Client, googleClient *google.Client, excludedUsers []string, awsAccountId string, awsRegion string) *Applier {
+func NewApplier(clientGroup *redshift.ClientGroup, iamClient *iam.Client, googleClient *google.Client, excludedUsers []string, awsAccountId string, awsRegion string, logger logr.Logger) *Applier {
 
 	excludedSchemas := []string{"public"}
 	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
 
 	return &Applier{
 		resolver: &resolver.Resolver{},
-		redshiftApplier: redshift.NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &RedshiftEventRecorder{}, awsAccountId),
-		iamApplier: iam.NewApplier(iamClient, awsAccountId, awsRegion, &IamEventRecorder{}),
+		redshiftApplier: redshift.NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &RedshiftEventRecorder{logger:logger}, awsAccountId, logger),
+		iamApplier: iam.NewApplier(iamClient, awsAccountId, awsRegion, &IamEventRecorder{logger:logger}, logger),
 		googleApplier: google.NewApplier(googleClient),
+		logger: logger,
 	}
-}
-
-func (applier *Applier) toString(model interface{}) string {
-	s, _ := json.MarshalIndent(model, "", "   ")
-	return fmt.Sprintf("%s", s)
 }
 
 func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 
-	log.Info(fmt.Sprintf("Received hubble model:\n%s", applier.toString(model)))
+	applier.logger.Info("Received hubble model", "model", model)
 
 	resolved, err := applier.resolver.Resolve(model)
 
@@ -62,7 +59,7 @@ func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 		return err
 	}
 
-	log.Info(fmt.Sprintf("Applying redshift model:\n%s", applier.toString(resolved.RedshiftModel)))
+	applier.logger.Info("Applying redshift model", "model", resolved.RedshiftModel)
 	if !dryRun {
 		err = applier.redshiftApplier.Apply(resolved.RedshiftModel)
 
@@ -71,7 +68,7 @@ func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 		}
 	}
 
-	log.Info(fmt.Sprintf("Applying IAM model:\n%s", applier.toString(resolved.IamModel)))
+	applier.logger.Info("Applying IAM model", "model", resolved.IamModel)
 	if !dryRun {
 		err = applier.iamApplier.Apply(resolved.IamModel)
 
@@ -80,7 +77,7 @@ func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 		}
 	}
 
-	log.Info(fmt.Sprintf("Applying Google model:\n%s", applier.toString(resolved.GoogleModel)))
+	applier.logger.Info("Applying Google model", "model", resolved.GoogleModel)
 	if !dryRun {
 		err = applier.googleApplier.Apply(resolved.GoogleModel)
 
