@@ -2,11 +2,11 @@ package hubblerbac
 
 import (
 	"context"
+	"github.com/go-logr/logr"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/service"
 
 	lunarwayv1alpha1 "github.com/lunarway/hubble-rbac-controller/pkg/apis/lunarway/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -75,7 +75,7 @@ func newReconciler(mgr manager.Manager, applier *service.Applier) reconcile.Reco
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
+
 	c, err := controller.New("hubblerbac-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
@@ -83,16 +83,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource HubbleRbac
 	err = c.Watch(&source.Kind{Type: &lunarwayv1alpha1.HubbleRbac{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner HubbleRbac
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &lunarwayv1alpha1.HubbleRbac{},
-	})
 	if err != nil {
 		return err
 	}
@@ -111,6 +101,25 @@ type ReconcileHubbleRbac struct {
 	scheme *runtime.Scheme
 	applier *service.Applier
 }
+
+func (r *ReconcileHubbleRbac) setStatusFailed(instance *lunarwayv1alpha1.HubbleRbac, err error, logger logr.Logger) {
+	instance.Status.Error = err.Error()
+	statusUpdateError := r.client.Status().Update(context.TODO(), instance)
+
+	if statusUpdateError != nil {
+		logger.Error(statusUpdateError, "unable to update status")
+	}
+}
+
+func (r *ReconcileHubbleRbac) setStatusOk(instance *lunarwayv1alpha1.HubbleRbac, logger logr.Logger) {
+	instance.Status.Error = ""
+	statusUpdateError := r.client.Status().Update(context.TODO(), instance)
+
+	if statusUpdateError != nil {
+		logger.Error(statusUpdateError, "unable to update status")
+	}
+}
+
 
 // Reconcile reads that state of the cluster for a HubbleRbac object and makes changes based on the state read
 // and what is in the HubbleRbac.Spec
@@ -132,15 +141,20 @@ func (r *ReconcileHubbleRbac) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
-	model, err := mapCrdsToHubbleModel(instance)
+	model, err := buildHubbleModel(instance)
 	if err != nil {
-		return reconcile.Result{}, err
+		reqLogger.Error(err, "invalid HubbleRbac CR encountered")
+		r.setStatusFailed(instance, err, reqLogger)
+		return reconcile.Result{}, nil //don't reschedule, if we can't construct the hubble model from the CR it is a permanent problem
 	}
 
 	err = r.applier.Apply(model,true)
 	if err != nil {
+		r.setStatusFailed(instance, err, reqLogger)
 		return reconcile.Result{}, err
 	}
+
+	r.setStatusOk(instance, reqLogger)
 
 	return reconcile.Result{}, nil
 }

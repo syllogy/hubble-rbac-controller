@@ -130,6 +130,9 @@ spec:
           type: object
         status:
           description: HubbleRbacStatus defines the observed state of HubbleRbac
+          properties:
+            error:
+              type: string
           type: object
       type: object
   version: v1alpha1

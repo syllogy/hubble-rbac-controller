@@ -6,7 +6,7 @@ import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
 )
 
-func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) {
+func buildHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) {
 
 	model := hubble.Model{}
 
