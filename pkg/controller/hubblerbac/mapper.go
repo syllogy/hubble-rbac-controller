@@ -1,4 +1,4 @@
-package hubbleuser
+package hubblerbac
 
 import (
 	"fmt"
@@ -6,11 +6,7 @@ import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
 )
 
-func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleUserList,
-	policies *lunarwayv1alpha1.HubblePolicyReferenceList,
-	databases *lunarwayv1alpha1.HubbleDatabaseList,
-	developerDatabases *lunarwayv1alpha1.HubbleDeveloperDatabaseList,
-	roles *lunarwayv1alpha1.HubbleRoleList) (hubble.Model, error) {
+func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) {
 
 	model := hubble.Model{}
 
@@ -20,20 +16,20 @@ func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleUserList,
 	datalakeGrantsMap := make(map[string]*hubble.GlueDatabase)
 	roleMap := make(map[string]*hubble.Role)
 
-	for _,database := range databases.Items {
-		databaseMap[database.Name] = model.AddDatabase(database.Spec.Cluster, database.Spec.Name)
+	for _,database := range  users.Spec.Databases {
+		databaseMap[database.Name] = model.AddDatabase(database.Cluster, database.Name)
 	}
 
-	for _,database := range developerDatabases.Items {
-		devDatabaseMap[database.Name] = model.AddDevDatabase(database.Spec.Cluster)
+	for _,database := range users.Spec.DevDatabases {
+		devDatabaseMap[database.Name] = model.AddDevDatabase(database.Cluster)
 	}
 
-	for _, policy := range policies.Items {
-		policyMap[policy.Name] = model.AddPolicyReference(policy.Spec.Arn)
+	for _, policy := range users.Spec.Policies {
+		policyMap[policy.Name] = model.AddPolicyReference(policy.Arn)
 	}
 
-	for _, role := range roles.Items {
-		for _, name := range role.Spec.DatalakeGrants {
+	for _, role := range users.Spec.Roles {
+		for _, name := range role.DatalakeGrants {
 			datalakeGrantsMap[name] = &hubble.GlueDatabase{
 				ShortName: name,
 				Name:      name,
@@ -41,19 +37,19 @@ func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleUserList,
 		}
 	}
 
-	for _, role := range roles.Items {
+	for _, role := range users.Spec.Roles {
 		var acl []hubble.DataSet
-		for _, name := range role.Spec.DatawarehouseGrants {
+		for _, name := range role.DatawarehouseGrants {
 			acl = append(acl, hubble.DataSet(name))
 		}
 
 		var datalakeGrants []*hubble.GlueDatabase
-		for _, name := range role.Spec.DatalakeGrants {
+		for _, name := range role.DatalakeGrants {
 			datalakeGrants = append(datalakeGrants, datalakeGrantsMap[name])
 		}
 
 		var databases []*hubble.Database
-		for _, name := range role.Spec.Databases {
+		for _, name := range role.Databases {
 			database, ok := databaseMap[name]
 			if !ok {
 				return model, fmt.Errorf("no such database: %s", name)
@@ -63,7 +59,7 @@ func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleUserList,
 		}
 
 		var devDatabases []*hubble.DevDatabase
-		for _, name := range role.Spec.DevDatabases {
+		for _, name := range role.DevDatabases {
 			database, ok := devDatabaseMap[name]
 			if !ok {
 				return model, fmt.Errorf("no such developer database: %s", name)
@@ -72,7 +68,7 @@ func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleUserList,
 		}
 
 		var policies []*hubble.PolicyReference
-		for _, name := range role.Spec.Policies {
+		for _, name := range role.Policies {
 			policy, ok := policyMap[name]
 			if !ok {
 				return model, fmt.Errorf("no such policy: %s", name)
@@ -81,7 +77,7 @@ func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleUserList,
 		}
 
 		r := &hubble.Role{
-			Name:                 role.Spec.Name,
+			Name:                 role.Name,
 			GrantedDatabases:     databases,
 			GrantedDevDatabases:  devDatabases,
 			GrantedGlueDatabases: datalakeGrants,
@@ -93,11 +89,15 @@ func mapCrdsToHubbleModel(users *lunarwayv1alpha1.HubbleUserList,
 		roleMap[role.Name] = r
 	}
 
-	for _, user := range users.Items {
-		a := model.AddUser(user.Spec.Name, user.Spec.Email)
+	for _, user := range users.Spec.Users {
+		a := model.AddUser(user.Name, user.Email)
 
-		for _,r := range user.Spec.Roles {
-			a.Assign(roleMap[r])
+		for _,r := range user.Roles {
+			role, ok := roleMap[r]
+			if !ok {
+				return model, fmt.Errorf("no such role: %s", r)
+			}
+			a.Assign(role)
 		}
 	}
 

@@ -1,9 +1,0 @@
-apiVersion: lunarway.com/v1alpha1
-kind: HubbleDatabase
-metadata:
-  name: stable
-  namespace: datascience
-spec:
-  name: stable
-  cluster: hubble-analytics.cbhx6wm2xwwx.eu-west-1.redshift.amazonaws.com
-  database: prod

@@ -1,10 +1,12 @@
-package hubbleuser
+package hubblerbac
 
 import (
 	"context"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/service"
+
 	lunarwayv1alpha1 "github.com/lunarway/hubble-rbac-controller/pkg/apis/lunarway/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,6 +17,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
+
+var log = logf.Log.WithName("controller_hubblerbac")
+
+/**
+* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
+* business logic.  Delete these comments after modifying this file.*
+ */
 
 //var ServiceAccountFilePath = os.Getenv("GOOGLE_CREDENTIALS_FILE_PATH")
 const accountId = "478824949770"
@@ -33,13 +42,10 @@ func init() {
 	}
 }
 
-var log = logf.Log.WithName("controller_hubbleuser")
 
-
-// Add creates a new HubbleUser Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new HubbleRbac Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-
 	excludedUsers := []string{
 		"lunarway",
 	}
@@ -63,41 +69,30 @@ func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr, applier))
 }
 
-// newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, applier *service.Applier) reconcile.Reconciler {
-	return &ReconcileHubbleUser{client: mgr.GetClient(), scheme: mgr.GetScheme(), applier: applier}
+	return &ReconcileHubbleRbac{client: mgr.GetClient(), scheme: mgr.GetScheme(), applier: applier}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-
 	// Create a new controller
-	c, err := controller.New("hubbleuser-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("hubblerbac-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	err = c.Watch(&source.Kind{Type: &lunarwayv1alpha1.HubbleUser{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to primary resource HubbleRbac
+	err = c.Watch(&source.Kind{Type: &lunarwayv1alpha1.HubbleRbac{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
-	err = c.Watch(&source.Kind{Type: &lunarwayv1alpha1.HubblePolicyReference{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	err = c.Watch(&source.Kind{Type: &lunarwayv1alpha1.HubbleDatabase{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	err = c.Watch(&source.Kind{Type: &lunarwayv1alpha1.HubbleRole{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	err = c.Watch(&source.Kind{Type: &lunarwayv1alpha1.HubbleDeveloperDatabase{}}, &handler.EnqueueRequestForObject{})
+	// TODO(user): Modify this to be the types you create that are owned by the primary resource
+	// Watch for changes to secondary resource Pods and requeue the owner HubbleRbac
+	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &lunarwayv1alpha1.HubbleRbac{},
+	})
 	if err != nil {
 		return err
 	}
@@ -105,11 +100,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// blank assignment to verify that ReconcileHubbleUser implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcileHubbleUser{}
+// blank assignment to verify that ReconcileHubbleRbac implements reconcile.Reconciler
+var _ reconcile.Reconciler = &ReconcileHubbleRbac{}
 
-// ReconcileHubbleUser reconciles a HubbleUser object
-type ReconcileHubbleUser struct {
+// ReconcileHubbleRbac reconciles a HubbleRbac object
+type ReconcileHubbleRbac struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
@@ -117,55 +112,27 @@ type ReconcileHubbleUser struct {
 	applier *service.Applier
 }
 
-func bail(err error) (reconcile.Result, error) {
-	if errors.IsNotFound(err) {
-		return reconcile.Result{}, nil
-	}
-	return reconcile.Result{}, err
-}
-
-// Reconcile reads that state of the cluster for a HubbleUser object and makes changes based on the state read
-// and what is in the HubbleUser.Spec
+// Reconcile reads that state of the cluster for a HubbleRbac object and makes changes based on the state read
+// and what is in the HubbleRbac.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
 // a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileHubbleUser) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileHubbleRbac) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling HubbleModel")
 
-	users := &lunarwayv1alpha1.HubbleUserList{}
-	err := r.client.List(context.TODO(), users)
+	instance := &lunarwayv1alpha1.HubbleRbac{}
+	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
-		return bail(err)
+		if errors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, err
 	}
 
-	roles := &lunarwayv1alpha1.HubbleRoleList{}
-	err = r.client.List(context.TODO(), roles)
-	if err != nil {
-		return bail(err)
-	}
-
-	databases := &lunarwayv1alpha1.HubbleDatabaseList{}
-	err = r.client.List(context.TODO(), databases)
-	if err != nil {
-		return bail(err)
-	}
-
-	developerDatabases := &lunarwayv1alpha1.HubbleDeveloperDatabaseList{}
-	err = r.client.List(context.TODO(), developerDatabases)
-	if err != nil {
-		return bail(err)
-	}
-
-	policies := &lunarwayv1alpha1.HubblePolicyReferenceList{}
-	err = r.client.List(context.TODO(), policies)
-	if err != nil {
-		return bail(err)
-	}
-
-	model, err := mapCrdsToHubbleModel(users, policies, databases, developerDatabases, roles)
+	model, err := mapCrdsToHubbleModel(instance)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

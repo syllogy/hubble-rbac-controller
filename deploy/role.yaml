@@ -75,6 +75,7 @@ rules:
   - hubbleroles
   - hubbledeveloperdatabases
   - hubblepolicyreferences
+  - hubblerbacs
   verbs:
   - create
   - delete
