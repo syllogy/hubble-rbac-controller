@@ -28,7 +28,7 @@ func TestApplier_SingleRole(t *testing.T) {
 	client, err := NewGoogleClient(jsonCredentials, "jwr@chatjing.com", "478824949770")
 	failOnError(err)
 
-	email := "jwr@lunar.app"
+	email := "jwr@chatjing.com"
 
 	applier := NewApplier(client)
 
