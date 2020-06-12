@@ -35,7 +35,7 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 		"looker",
 		"rdsdb",
 	}
-	
+
 	redshiftCredentials := redshift.ClusterCredentials{
 		Username:                 conf.RedshiftUsername,
 		Password:                 conf.RedshiftPassword,

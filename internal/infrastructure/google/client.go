@@ -7,6 +7,7 @@ import (
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/option"
+	"strings"
 )
 
 
@@ -16,13 +17,17 @@ type AwsRoleCustomSchemaDTO struct {
 }
 
 type AwsRolesCustomSchemaDTO struct {
-	Roles []AwsRoleCustomSchemaDTO `json:"Role"`
+	Roles []AwsRoleCustomSchemaDTO `json:"IAM_Role"`
 	SessionDuration int            `json:"SessionDuration"`
 }
 
 type User struct {
 	Id string
 	email string
+}
+
+func (r AwsRoleCustomSchemaDTO) isManaged() bool {
+	return strings.Contains(r.Value, "/hubble-rbac/")
 }
 
 
@@ -70,9 +75,23 @@ func NewGoogleClient(jsonKey []byte, principalEmail string, awsAccountId string)
 	}, nil
 }
 
+func (client *Client) get(userKey string) (AwsRolesCustomSchemaDTO, error) {
+
+	var result AwsRolesCustomSchemaDTO
+
+	user, err := client.service.Users.Get(userKey).Projection("full").Do()
+	if err != nil {
+		return result, fmt.Errorf("unable to retrieve users: %w", err)
+	}
+
+	err = json.Unmarshal(user.CustomSchemas["AWS_SAML"], &result)
+	return result, err
+}
+
+
 func (client *Client) update(userKey string, awsRoles AwsRolesCustomSchemaDTO) error {
 
-	x, err := client.service.Users.Get(userKey).Projection("full").Do()
+	user, err := client.service.Users.Get(userKey).Projection("full").Do()
 	if err != nil {
 		return fmt.Errorf("unable to retrieve users: %w", err)
 	}
@@ -82,9 +101,9 @@ func (client *Client) update(userKey string, awsRoles AwsRolesCustomSchemaDTO) e
 		return fmt.Errorf("unable to marshal AwsRoles: %w", err)
 	}
 
-	x.CustomSchemas["AWS"] = jsonRaw
+	user.CustomSchemas["AWS_SAML"] = jsonRaw
 
-	_, err = client.service.Users.Update(userKey, x).Do()
+	_, err = client.service.Users.Update(userKey, user).Do()
 	if err != nil {
 		return fmt.Errorf("unable to update user: %w", err)
 	}
@@ -99,7 +118,7 @@ func (client *Client) createDTO(roles []string) AwsRolesCustomSchemaDTO {
 	for _, role := range roles {
 		awsRole := AwsRoleCustomSchemaDTO{
 			Type:  "work",
-			Value: fmt.Sprintf("arn:aws:iam::%s:role/hubble-rbac/%s,arn:aws:iam::%s:saml-provider/GoogleApp", client.awsAccountId, role, client.awsAccountId),
+			Value: fmt.Sprintf("arn:aws:iam::%s:role/hubble-rbac/%s,arn:aws:iam::%s:saml-provider/GoogleApps", client.awsAccountId, role, client.awsAccountId),
 		}
 		awsRoles = append(awsRoles, awsRole)
 	}
@@ -140,7 +159,21 @@ func (client *Client) Users() ([]User, error) {
 }
 
 func (client *Client) UpdateRoles(userId string, roles []string) error {
-	return client.update(userId, client.createDTO(roles))
+	currentRoles, err := client.get(userId)
+
+	if err != nil {
+		return err
+	}
+
+	desiredRoles := client.createDTO(roles)
+
+	for _, r := range currentRoles.Roles {
+		if !r.isManaged() {
+			desiredRoles.Roles = append(desiredRoles.Roles, r)
+		}
+	}
+
+	return client.update(userId, desiredRoles)
 }
 
 func (client *Client) Roles(userId string) ([]string, error) {
@@ -151,7 +184,7 @@ func (client *Client) Roles(userId string) ([]string, error) {
 	}
 
 	var awsRoles AwsRolesCustomSchemaDTO
-	err = json.Unmarshal(googleUser.CustomSchemas["AWS"], &awsRoles)
+	err = json.Unmarshal(googleUser.CustomSchemas["AWS_SAML"], &awsRoles)
 
 	if err != nil {
 		return nil, err

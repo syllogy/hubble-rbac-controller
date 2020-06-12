@@ -28,13 +28,13 @@ func TestApplier_SingleRole(t *testing.T) {
 	client, err := NewGoogleClient(jsonCredentials, "jwr@chatjing.com", "478824949770")
 	failOnError(err)
 
-	email := "jwr@chatjing.com"
+	email := "jwr@lunar.app"
 
 	applier := NewApplier(client)
 
 	model := googleCore.Model{}
 	user := model.DeclareUser(email)
-	user.Assign("BiAnalyst")
+	user.Assign("GoogleBiAnalyst")
 
 	err = applier.Apply(model)
 	assert.NoError(err)
@@ -47,5 +47,5 @@ func TestApplier_SingleRole(t *testing.T) {
 
 	googleRoles, err := client.Roles(jwr.Id)
 	failOnError(err)
-	assert.Equal([]string{"arn:aws:iam::478824949770:role/hubble-rbac/BiAnalyst,arn:aws:iam::478824949770:saml-provider/GoogleApp"}, googleRoles)
+	assert.Equal([]string{"arn:aws:iam::478824949770:role/hubble-rbac/GoogleBiAnalyst,arn:aws:iam::478824949770:saml-provider/GoogleApps"}, googleRoles)
 }
