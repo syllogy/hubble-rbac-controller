@@ -4,6 +4,7 @@ import (
 	"fmt"
 	lunarwayv1alpha1 "github.com/lunarway/hubble-rbac-controller/pkg/apis/lunarway/v1alpha1"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
+	"strings"
 )
 
 func buildHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) {
@@ -31,7 +32,7 @@ func buildHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) 
 	for _, role := range users.Spec.Roles {
 		for _, name := range role.DatalakeGrants {
 			datalakeGrantsMap[name] = &hubble.GlueDatabase{
-				ShortName: name,
+				ShortName: strings.ReplaceAll(name, "-", ""),
 				Name:      name,
 			}
 		}

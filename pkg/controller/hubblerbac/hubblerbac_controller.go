@@ -2,9 +2,14 @@ package hubblerbac
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-logr/logr"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/service"
+	"github.com/lunarway/hubble-rbac-controller/pkg/configuration"
+	"io/ioutil"
 
 	lunarwayv1alpha1 "github.com/lunarway/hubble-rbac-controller/pkg/apis/lunarway/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -20,51 +25,59 @@ import (
 
 var log = logf.Log.WithName("controller_hubblerbac")
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
 
-//var ServiceAccountFilePath = os.Getenv("GOOGLE_CREDENTIALS_FILE_PATH")
-const accountId = "478824949770"
-const region = "eu-west-1"
-var localhostCredentials redshift.ClusterCredentials
+func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 
-func init() {
-	localhostCredentials = redshift.ClusterCredentials{
-		Username:                 "lunarway",
-		Password:                 "lunarway",
-		MasterDatabase:           "lunarway",
-		Host:                     "localhost",
-		Sslmode:                  "disable",
-		Port:                     5432,
-		ExternalSchemasSupported: false,
+	excludedUsers := []string{
+		"produser",
+		"dev",
+		"inspari",
+		"looker",
+		"rdsdb",
 	}
+	
+	redshiftCredentials := redshift.ClusterCredentials{
+		Username:                 conf.RedshiftUsername,
+		Password:                 conf.RedshiftPassword,
+		MasterDatabase:           conf.RedshiftMasterDatabase,
+		Host:                     conf.RedshiftHostTemplate,
+		Sslmode:                  "require",
+		Port:                     5439,
+		ExternalSchemasSupported: true,
+	}
+
+	clientGroup := redshift.NewClientGroupY(&redshiftCredentials)
+
+	session := iam.AwsSessionFactory{}.CreateSession()
+	iamClient := iam.New(session)
+
+	jsonCredentials, err := ioutil.ReadFile(conf.GoogleCredentials)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load google credentials: %v", err)
+	}
+	googleClient, err := google.NewGoogleClient(jsonCredentials, conf.GoogleAdminPrincipalEmail, conf.AwsAccountId)
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize google client: %v", err)
+	}
+
+	applier := service.NewApplier(clientGroup, iamClient, googleClient, excludedUsers, conf.AwsAccountId, conf.Region, log)
+
+	return applier, nil
 }
 
-
-// Add creates a new HubbleRbac Controller and adds it to the Manager. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	excludedUsers := []string{
-		"lunarway",
-	}
-	//clientGroup := redshift.NewClientGroup(map[string]*redshift.ClusterCredentials{"hubble": &localhostCredentials})
-	//
-	//session := iam.LocalStackSessionFactory{}.CreateSession()
-	//iamClient := iam.New(session)
-	//
-	//jsonCredentials, err := ioutil.ReadFile(ServiceAccountFilePath)
-	//if err != nil {
-	//	return fmt.Errorf("unable to load google credentials: %v", err)
-	//}
-	//googleClient, err := google.NewGoogleClient(jsonCredentials, "jwr@chatjing.com", accountId)
-	//if err != nil {
-	//	return fmt.Errorf("unable to initialize google client: %v", err)
-	//}
 
-	//applier := service.NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region)
-	applier := service.NewApplier(nil, nil, nil, excludedUsers, accountId, region, log)
+	conf, err := configuration.LoadConfiguration()
+
+	if err != nil {
+		return fmt.Errorf("unable to load configuration: %w", err)
+	}
+
+	applier, err := createApplier(conf)
+
+	if err != nil {
+		return fmt.Errorf("unable to create applier: %w", err)
+	}
 
 	return add(mgr, newReconciler(mgr, applier))
 }
@@ -93,7 +106,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // blank assignment to verify that ReconcileHubbleRbac implements reconcile.Reconciler
 var _ reconcile.Reconciler = &ReconcileHubbleRbac{}
 
-// ReconcileHubbleRbac reconciles a HubbleRbac object
 type ReconcileHubbleRbac struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
@@ -120,14 +132,6 @@ func (r *ReconcileHubbleRbac) setStatusOk(instance *lunarwayv1alpha1.HubbleRbac,
 	}
 }
 
-
-// Reconcile reads that state of the cluster for a HubbleRbac object and makes changes based on the state read
-// and what is in the HubbleRbac.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
-// Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileHubbleRbac) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling HubbleModel")
@@ -148,7 +152,7 @@ func (r *ReconcileHubbleRbac) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, nil //don't reschedule, if we can't construct the hubble model from the CR it is a permanent problem
 	}
 
-	err = r.applier.Apply(model,true)
+	err = r.applier.Apply(model,false)
 	if err != nil {
 		r.setStatusFailed(instance, err, reqLogger)
 		return reconcile.Result{}, err

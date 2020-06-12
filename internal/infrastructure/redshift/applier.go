@@ -85,7 +85,7 @@ Another exception are the set of databases as they will never be deleted, even i
  */
 
 type Applier struct {
-	clientGroup     *ClientGroup
+	clientGroup     ClientGroup
 	excludedUsers   []string //excluded users will not be deleted, even if they are not mentioned in the applied model
 	excludedSchemas []string
 	excludedDatabases []string //excluded database will not have their grants managed
@@ -94,7 +94,7 @@ type Applier struct {
 	logger logr.Logger
 }
 
-func NewApplier(clientGroup *ClientGroup, excludedDatabases []string, excludedUsers []string, excludedSchemas []string, eventListener ApplyEventLister, awsAccountId string, logger logr.Logger) *Applier {
+func NewApplier(clientGroup ClientGroup, excludedDatabases []string, excludedUsers []string, excludedSchemas []string, eventListener ApplyEventLister, awsAccountId string, logger logr.Logger) *Applier {
 	return &Applier{
 		clientGroup:     clientGroup,
 		excludedDatabases: excludedDatabases,
@@ -218,7 +218,7 @@ func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGrou
 			applier.eventListener.Handle(EnsureSchemaExists, managedSchema.Name)
 
 			if err != nil {
-				return fmt.Errorf("failed to create schema %s on database %s: %w", managedGroup.Name, database.Identifier(), err)
+				return fmt.Errorf("failed to create schema %s on database %s: %w", managedSchema.Name, database.Identifier(), err)
 			}
 
 			err = client.Grant(managedGroup.Name, managedSchema.Name)
@@ -239,7 +239,7 @@ func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGrou
 			applier.eventListener.Handle(EnsureSchemaExists, managedSchema.Name)
 
 			if err != nil {
-				return fmt.Errorf("failed to create schema %s on database %s: %w", managedGroup.Name, database.Identifier(), err)
+				return fmt.Errorf("failed to create schema %s on database %s: %w", managedSchema.Name, database.Identifier(), err)
 			}
 
 			err = client.Grant(managedGroup.Name, managedSchema.Name)

@@ -35,7 +35,7 @@ type Applier struct {
 	logger logr.Logger
 }
 
-func NewApplier(clientGroup *redshift.ClientGroup, iamClient *iam.Client, googleClient *google.Client, excludedUsers []string, awsAccountId string, awsRegion string, logger logr.Logger) *Applier {
+func NewApplier(clientGroup redshift.ClientGroup, iamClient *iam.Client, googleClient *google.Client, excludedUsers []string, awsAccountId string, awsRegion string, logger logr.Logger) *Applier {
 
 	excludedSchemas := []string{"public"}
 	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
@@ -59,23 +59,23 @@ func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 		return err
 	}
 
-	applier.logger.Info("Applying redshift model", "model", resolved.RedshiftModel)
-	if !dryRun {
-		err = applier.redshiftApplier.Apply(resolved.RedshiftModel)
+	//applier.logger.Info("Applying redshift model", "model", resolved.RedshiftModel)
+	//if !dryRun {
+	//	err = applier.redshiftApplier.Apply(resolved.RedshiftModel)
+	//
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
 
-		if err != nil {
-			return err
-		}
-	}
-
-	applier.logger.Info("Applying IAM model", "model", resolved.IamModel)
-	if !dryRun {
-		err = applier.iamApplier.Apply(resolved.IamModel)
-
-		if err != nil {
-			return err
-		}
-	}
+	//applier.logger.Info("Applying IAM model", "model", resolved.IamModel)
+	//if !dryRun {
+	//	err = applier.iamApplier.Apply(resolved.IamModel)
+	//
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
 
 	applier.logger.Info("Applying Google model", "model", resolved.GoogleModel)
 	if !dryRun {

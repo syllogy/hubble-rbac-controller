@@ -16,15 +16,21 @@ type ClusterCredentials struct {
 	ExternalSchemasSupported bool
 }
 
-type ClientGroup struct {
+type ClientGroup interface {
+	ForDatabase(database *redshift.Database) (*Client, error)
+	MasterDatabase(clusterIdentifier string) (*Client, error)
+	Database(clusterIdentifier string, databaseName string) (*Client, error)
+}
+
+type ClientGroupImpl struct {
 	credentials map[string]*ClusterCredentials
 }
 
-func NewClientGroup(credentials map[string]*ClusterCredentials) *ClientGroup {
-	return &ClientGroup{credentials: credentials}
+func NewClientGroup(credentials map[string]*ClusterCredentials) ClientGroup {
+	return &ClientGroupImpl{credentials: credentials}
 }
 
-func (cg ClientGroup) ForDatabase(database *redshift.Database) (*Client, error) {
+func (cg ClientGroupImpl) ForDatabase(database *redshift.Database) (*Client, error) {
 
 	credentials, ok := cg.credentials[database.ClusterIdentifier]
 
@@ -35,7 +41,7 @@ func (cg ClientGroup) ForDatabase(database *redshift.Database) (*Client, error) 
 	return NewClient(credentials.Username, credentials.Password, credentials.Host, database.Name, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
 
-func (cg ClientGroup) MasterDatabase(clusterIdentifier string) (*Client, error) {
+func (cg ClientGroupImpl) MasterDatabase(clusterIdentifier string) (*Client, error) {
 
 	credentials, ok := cg.credentials[clusterIdentifier]
 
@@ -46,7 +52,7 @@ func (cg ClientGroup) MasterDatabase(clusterIdentifier string) (*Client, error) 
 	return NewClient(credentials.Username, credentials.Password, credentials.Host, credentials.MasterDatabase, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
 
-func (cg ClientGroup) Database(clusterIdentifier string, databaseName string) (*Client, error) {
+func (cg ClientGroupImpl) Database(clusterIdentifier string, databaseName string) (*Client, error) {
 
 	credentials, ok := cg.credentials[clusterIdentifier]
 
@@ -55,4 +61,34 @@ func (cg ClientGroup) Database(clusterIdentifier string, databaseName string) (*
 	}
 
 	return NewClient(credentials.Username, credentials.Password, credentials.Host, databaseName, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
+}
+
+
+type ClientGroupSharedCredentials struct {
+	credentials *ClusterCredentials
+}
+
+func NewClientGroupY(credentials *ClusterCredentials) ClientGroup {
+	return &ClientGroupSharedCredentials{credentials: credentials}
+}
+
+func (cg ClientGroupSharedCredentials) ForDatabase(database *redshift.Database) (*Client, error) {
+
+	credentials := cg.credentials
+
+	return NewClient(credentials.Username, credentials.Password, fmt.Sprintf(credentials.Host, database.ClusterIdentifier), database.Name, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
+}
+
+func (cg ClientGroupSharedCredentials) MasterDatabase(clusterIdentifier string) (*Client, error) {
+
+	credentials := cg.credentials
+
+	return NewClient(credentials.Username, credentials.Password, fmt.Sprintf(credentials.Host, clusterIdentifier), credentials.MasterDatabase, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
+}
+
+func (cg ClientGroupSharedCredentials) Database(clusterIdentifier string, databaseName string) (*Client, error) {
+
+	credentials := cg.credentials
+
+	return NewClient(credentials.Username, credentials.Password, fmt.Sprintf(credentials.Host, clusterIdentifier), databaseName, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }

@@ -8,19 +8,18 @@ spec:
     - name: access-to-tmp-bucket
       arn: "arn:aws:iam::478824949770:policy/access-to-tmp-bucket"
 
-  databases:
-    - name: stable
-      cluster: hubble-analytics.cbhx6wm2xwwx.eu-west-1.redshift.amazonaws.com
-      database: prod
+  databases: []
+#    - name: stable
+#      cluster: hubble-analytics.cbhx6wm2xwwx.eu-west-1.redshift.amazonaws.com
+#      database: prod
 
   devDatabases:
     - name: dev
-      cluster: hubble.cbhx6wm2xwwx.eu-west-1.redshift.amazonaws.com
+      cluster: hubble
 
   roles:
-    - name: BiAnalyst
-      databases:
-        - stable
+    - name: GoogleBiAnalyst
+      databases: []
       devDatabases:
         - dev
       datalakeGrants:
@@ -35,4 +34,4 @@ spec:
     - name: jwr
       email: "jwr@lunar.app"
       roles:
-        - BiAnalyst
+        - GoogleBiAnalyst
