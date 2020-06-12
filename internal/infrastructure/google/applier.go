@@ -40,7 +40,7 @@ func (applier *Applier) Apply(model googleCore.Model) error {
 				return fmt.Errorf("Unable to update roles: %w", err)
 			}
 		} else {
-			//TODO: notify that non existing user was found
+			return fmt.Errorf("user %s doesn't exist", user.Email)
 		}
 	}
 
