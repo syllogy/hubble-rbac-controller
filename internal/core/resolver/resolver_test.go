@@ -88,7 +88,6 @@ func Test_DbtDeveloper(t *testing.T) {
 	model := hubble.Model{
 		Databases: []*hubble.Database{&data.unstable},
 		DevDatabases: []*hubble.DevDatabase{&data.dev},
-		GlueDatabases: []*hubble.GlueDatabase{&data.lwgoeventsDatabase},
 		Users:         []*hubble.User{&data.dbtDeveloper},
 		Roles:         []*hubble.Role{&data.dbtDeveloperRole},
 		Policies: []*hubble.PolicyReference{&data.allowAccessToTmpBucketPolicy},
@@ -141,7 +140,6 @@ func Test_BiAnalyst(t *testing.T) {
 	model := hubble.Model{
 		Databases: []*hubble.Database{&data.unstable},
 		DevDatabases: []*hubble.DevDatabase{},
-		GlueDatabases: []*hubble.GlueDatabase{},
 		Users:         []*hubble.User{&data.biAnalyst},
 		Roles:         []*hubble.Role{&data.biAnalystRole},
 	}

@@ -100,7 +100,7 @@ func TestApplier_Apply(t *testing.T) {
 		localhostCredentials.Username,
 		localhostCredentials.Password,
 		localhostCredentials.Host,
-		"lunarway",
+		"prod",
 		localhostCredentials.Sslmode,
 		localhostCredentials.Port,
 		localhostCredentials.ExternalSchemasSupported,
