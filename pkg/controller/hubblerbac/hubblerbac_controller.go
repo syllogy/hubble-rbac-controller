@@ -35,6 +35,8 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 		"looker",
 		"rdsdb",
 	}
+	excludedSchemas := []string{"public"}
+	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
 
 	redshiftCredentials := redshift.ClusterCredentials{
 		Username:                 conf.RedshiftUsername,
@@ -47,9 +49,11 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 	}
 
 	clientGroup := redshift.NewClientGroupY(&redshiftCredentials)
+	redshiftApplier := redshift.NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, service.NewRedshiftLogger(log), conf.AwsAccountId, log)
 
 	session := iam.AwsSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)
+	iamApplier := iam.NewApplier(iamClient, conf.AwsAccountId, conf.Region, service.NewIamLogger(log), log)
 
 	jsonCredentials, err := ioutil.ReadFile(conf.GoogleCredentials)
 	if err != nil {
@@ -59,8 +63,9 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize google client: %v", err)
 	}
+	googleApplier := google.NewApplier(googleClient)
 
-	applier := service.NewApplier(clientGroup, iamClient, googleClient, excludedUsers, conf.AwsAccountId, conf.Region, log)
+	applier := service.NewApplier(iamApplier, googleApplier, redshiftApplier, log)
 
 	return applier, nil
 }

@@ -10,12 +10,10 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
-var ServiceAccountFilePath = os.Getenv("GOOGLE_CREDENTIALS_FILE_PATH")
 const accountId = "478824949770"
 const region = "eu-west-1"
 
@@ -86,19 +84,17 @@ func TestApplier_Apply(t *testing.T) {
 	//logger := infrastructure.NewLogger(t)
 	logger := zap.Logger()
 
-	excludedUsers := []string{
-		"lunarway",
-	}
+	excludedUsers := []string{"lunarway"}
+	excludedSchemas := []string{"public"}
+	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
 	clientGroup := redshift.NewClientGroup(map[string]*redshift.ClusterCredentials{"hubble": &localhostCredentials})
+	redshiftApplier := redshift.NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &RedshiftEventRecorder{logger:logger}, accountId, logger)
+
+	googleApplier := google.NewFakeApplier()
 
 	session := iam.LocalStackSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)
-
-	jsonCredentials, err := ioutil.ReadFile(ServiceAccountFilePath)
-	if err != nil {
-		log.Fatalf("Unable to retrieve users in domain: %v", err)
-	}
-	googleClient, _ := google.NewGoogleClient(jsonCredentials, "jwr@chatjing.com", "478824949770")
+	iamApplier := iam.NewApplier(iamClient, accountId, region, &IamEventRecorder{logger:logger}, logger)
 
 	redshiftClient, err := redshift.NewClient(
 		localhostCredentials.Username,
@@ -117,7 +113,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	iamExpected := iam.IAMState{}
 
-	applier := NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region, logger)
+	applier := NewApplier(iamApplier, googleApplier, redshiftApplier, logger)
 
 	model := hubble.Model{}
 	user := model.AddUser("jwr", "jwr@lunar.app")

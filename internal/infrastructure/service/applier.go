@@ -26,28 +26,37 @@ func (e *IamEventRecorder) Handle(eventType iam.ApplyEventType, name string) {
 	e.logger.Info("Event occurred", "eventType", eventType.ToString(), "name", name)
 }
 
+func NewIamLogger(logger logr.Logger) *IamEventRecorder {
+	return &IamEventRecorder{logger:logger}
+}
+
+func NewRedshiftLogger(logger logr.Logger) *RedshiftEventRecorder {
+	return &RedshiftEventRecorder{logger:logger}
+}
 
 type Applier struct {
 	resolver *resolver.Resolver
-	googleApplier *google.Applier
+	googleApplier google.Applier
 	redshiftApplier *redshift.Applier
 	iamApplier *iam.Applier
 	logger logr.Logger
 }
 
-func NewApplier(clientGroup redshift.ClientGroup, iamClient *iam.Client, googleClient *google.Client, excludedUsers []string, awsAccountId string, awsRegion string, logger logr.Logger) *Applier {
-
-	excludedSchemas := []string{"public"}
-	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
+func NewApplier(
+	iamApplier *iam.Applier,
+	googleApplier google.Applier,
+	redshiftApplier *redshift.Applier,
+	logger logr.Logger) *Applier {
 
 	return &Applier{
 		resolver: &resolver.Resolver{},
-		redshiftApplier: redshift.NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &RedshiftEventRecorder{logger:logger}, awsAccountId, logger),
-		iamApplier: iam.NewApplier(iamClient, awsAccountId, awsRegion, &IamEventRecorder{logger:logger}, logger),
-		googleApplier: google.NewApplier(googleClient),
+		redshiftApplier: redshiftApplier,
+		iamApplier: iamApplier,
+		googleApplier: googleApplier,
 		logger: logger,
 	}
 }
+
 
 func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 
