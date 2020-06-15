@@ -127,7 +127,12 @@ func (c *Client) CreateDatabase(name string, owner *string) error {
 	}
 
 	if c.contains(databases, name) {
-		return nil
+		if owner != nil {
+			_, err = c.db.Exec(fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", name, *owner))
+			return err
+		} else {
+			return nil
+		}
 	}
 
 	if owner != nil {
