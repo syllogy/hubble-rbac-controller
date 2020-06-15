@@ -35,7 +35,7 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 		"looker",
 		"rdsdb",
 	}
-	excludedSchemas := []string{"public"}
+	excludedSchemas := []string{}
 	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
 
 	redshiftCredentials := redshift.ClusterCredentials{
