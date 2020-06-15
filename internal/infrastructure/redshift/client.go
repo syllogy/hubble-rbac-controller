@@ -330,10 +330,32 @@ func (c *Client) Grants(groupName string) ([]string, error) {
 
 func (c *Client) Grant(groupName string, schemaName string) error {
 	_, err := c.db.Exec(fmt.Sprintf("GRANT ALL ON SCHEMA %s TO GROUP %s", schemaName, groupName))
+
+	if err != nil {
+		return err
+	}
+	_, err = c.db.Exec(fmt.Sprintf("GRANT SELECT ON ALL TABLES IN SCHEMA %s TO GROUP %s", schemaName, groupName))
+
+	if err != nil {
+		return err
+	}
+	_, err = c.db.Exec(fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA %s GRANT SELECT ON TABLES TO GROUP %s", schemaName, groupName))
+
 	return err
 }
 
 func (c *Client) Revoke(groupName string, schemaName string) error {
-	_, err := c.db.Exec(fmt.Sprintf("REVOKE ALL ON SCHEMA %s FROM GROUP %s", schemaName, groupName))
+
+	_, err := c.db.Exec(fmt.Sprintf("REVOKE SELECT ON ALL TABLES IN SCHEMA %s FROM GROUP %s", schemaName, groupName))
+	if err != nil {
+		return err
+	}
+
+	_, err = c.db.Exec(fmt.Sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA %s REVOKE SELECT ON TABLES FROM GROUP %s", schemaName, groupName))
+	if err != nil {
+		return err
+	}
+
+	_, err = c.db.Exec(fmt.Sprintf("REVOKE ALL ON SCHEMA %s FROM GROUP %s", schemaName, groupName))
 	return err
 }
