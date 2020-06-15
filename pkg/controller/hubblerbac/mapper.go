@@ -18,7 +18,7 @@ func buildHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) 
 	roleMap := make(map[string]*hubble.Role)
 
 	for _,database := range  users.Spec.Databases {
-		databaseMap[database.Name] = model.AddDatabase(database.Cluster, database.Name)
+		databaseMap[database.Name] = model.AddDatabase(database.Cluster, database.Database)
 	}
 
 	for _,database := range users.Spec.DevDatabases {
