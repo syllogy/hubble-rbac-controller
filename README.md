@@ -5,25 +5,44 @@ This repo contains the implementation of a kubernetes controller called hubble-r
 The repo https://github.com/lunarway/lunar-way-hubble-rbac-controller contains the actual deployment of the controller at Lunar.
 The controller controls HubbleRbac custom resources. A HubbleRbac custom resource declares the users, roles and databases the Hubble platform consists of. They are maintained here: https://github.com/lunarway/hubble-access
 
-## Instructions
-To build
+## Code structure
+
+To build the code:
 ```
 $ make code/compile 
 ```
-Run unit tests
+
+
+The code structure is loosely based on the onion architecture (also known as hexagonical architecture or clean architecture).
+There are 3 main layers: core, infrastructure, kubernetes
+
+### Core
+*Located at:* `internal/core` \
+*Description:* Contains all the internal logic, there are no infrastructure dependencies, all tests are unit tests.
+To run unit tests:
 ```
 $ make test/unit 
 ```
-Run integration tests
+
+### Infrastructure
+*Located at:* `internal/infrastructure` \
+*Description:* contains all infrastructure code, most tests are integration tests.
+To run integration tests:
 ```
 $ docker-compose up -d
 $ make test/integration
 $ docker-compose down 
 ```
-To run the operator locally, define all the env variables needed by the configuration (defined in pgk/configuration/configuration.go) and run:
+
+### Kubernetes
+*Located at:* `pkg/` \
+*Description:* Contains the kubernetes controller and everything related to kubernetes.      
+To run the controller locally, define all the env variables needed by the configuration (defined in pgk/configuration/configuration.go) and run:
 ```
 $ make run/local
 ```
+
+
 To release a new version, create a git release tag and push it to github.
 
 ## Manual set up of the google integration
