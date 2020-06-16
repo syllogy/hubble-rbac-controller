@@ -23,6 +23,11 @@ func FetchIAMState(client *Client) IAMState {
 			policies = append(policies, *policy.PolicyName)
 		}
 
+		attachedPolicies, _ = client.ListUnmanagedAttachedPolicies(role)
+		for _,policy := range attachedPolicies {
+			policies = append(policies, *policy.PolicyName)
+		}
+
 		result[*role.RoleName] = policies
 	}
 

@@ -254,7 +254,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 	for _, attachedPolicy := range unmanagedAttachedPolicies {
 		if desiredRole.LookupReferencedPolicy(*attachedPolicy.PolicyArn) == nil {
 
-			err := applier.client.DetachPolicy(currentRole, attachedPolicy)
+			err := applier.client.DetachUnmanagedPolicy(currentRole, attachedPolicy)
 
 			if err != nil {
 				return fmt.Errorf("failed detaching policy %s: %w", *attachedPolicy.PolicyName, err)
@@ -281,6 +281,19 @@ func (applier *Applier) deleteRole(role *iam.Role) error {
 
 		if err != nil {
 			return err
+		}
+	}
+
+	attachedPolicies, err = applier.client.ListUnmanagedAttachedPolicies(role)
+
+	for _, attachedPolicy := range attachedPolicies {
+		applier.eventListener.Handle(PolicyDeleted, *attachedPolicy.PolicyName)
+		applier.logger.Info(fmt.Sprintf("Detaching policy %s attached to %s", *attachedPolicy.PolicyName, *role.RoleName))
+
+		err := applier.client.DetachUnmanagedPolicy(role, attachedPolicy)
+
+		if err != nil {
+			return fmt.Errorf("failed detaching policy %s: %w", *attachedPolicy.PolicyName, err)
 		}
 	}
 

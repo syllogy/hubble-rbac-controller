@@ -3,6 +3,9 @@
 package iam
 
 import (
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/iam"
 	iamCore "github.com/lunarway/hubble-rbac-controller/internal/core/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
 	log "github.com/sirupsen/logrus"
@@ -32,6 +35,44 @@ func failOnError(err error) {
 func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)
+}
+
+func (client *Client) createUnmanagedPolicy(name string, document string) (*iam.Policy, error) {
+
+	c := iam.New(client.session)
+
+	response, err := c.ListPolicies(&iam.ListPoliciesInput{
+		MaxItems:aws.Int64(5000),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.assertNotTruncated(response.IsTruncated)
+
+	if err != nil {
+		return nil, err
+	}
+
+	policies := response.Policies
+
+	policy := client.lookupPolicy(policies, name)
+	if policy != nil {
+		return policy, nil
+	} else {
+		response, err := c.CreatePolicy(&iam.CreatePolicyInput{
+			Description:    aws.String(""),
+			PolicyDocument: &document,
+			PolicyName:     &name,
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("unable to create policy %s: %w", name, err)
+		}
+
+		return response.Policy, nil
+	}
 }
 
 func setUp(t *testing.T) TestContext {
@@ -354,7 +395,7 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
     ]
 }
 `
-	_, err := context.client.createOrUpdatePolicy("access-to-tmp-bucket", policyDocument)
+	_, err := context.client.createUnmanagedPolicy("access-to-tmp-bucket", policyDocument)
 	failOnError(err)
 
 	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
@@ -372,7 +413,7 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 					},
 				},
 			},
-			Policies: []*iamCore.PolicyReference{{Arn:"arn:aws:iam::000000000000:policy/hubble-rbac/access-to-tmp-bucket"}},
+			Policies: []*iamCore.PolicyReference{{Arn:"arn:aws:iam::000000000000:policy/access-to-tmp-bucket"}},
 		},
 	}})
 
@@ -405,7 +446,67 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 
 	actual = FetchIAMState(context.client)
 	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst"}}
-	AssertState(assert, actual, expected, "IAM role have been created")
-
+	AssertState(assert, actual, expected, "policy have been detached")
 }
 
+func TestApplier_UserWithReferencedUnmanagedPoliciesCanBeDeleted(t *testing.T) {
+
+	context := setUp(t)
+
+	assert := assert.New(t)
+
+	policyDocument := `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::lunarway-prod-data-tmp/*"
+            ]
+        }
+    ]
+}
+`
+	_, err := context.client.createUnmanagedPolicy("access-to-tmp-bucket", policyDocument)
+	failOnError(err)
+
+	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+		{
+			Name:                  "BiAnalyst",
+			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
+				{
+					Email:            "jwr@lunar.app",
+					DatabaseUsername: "jwr_bianalyst",
+					Databases:        []*iamCore.Database{
+						{
+							ClusterIdentifier: "dev",
+							Name:              "jwr",
+						},
+					},
+				},
+			},
+			Policies: []*iamCore.PolicyReference{{Arn:"arn:aws:iam::000000000000:policy/access-to-tmp-bucket"}},
+		},
+	}})
+
+	assert.NoError(err)
+
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst", "access-to-tmp-bucket"}}
+	AssertState(assert, actual, expected, "IAM role have been created")
+
+	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{}})
+	assert.NoError(err)
+
+	actual = FetchIAMState(context.client)
+	expected.Roles = map[string][]string{}
+	AssertState(assert, actual, expected, "IAM role has been deleted")
+}

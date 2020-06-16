@@ -301,6 +301,32 @@ func (client *Client) DetachPolicy(role *iam.Role, policy *iam.AttachedPolicy) e
 	return nil
 }
 
+func (client *Client) DetachUnmanagedPolicy(role *iam.Role, policy *iam.AttachedPolicy) error {
+
+	c := iam.New(client.session)
+
+	attachedPolicies, err := client.ListUnmanagedAttachedPolicies(role)
+
+	if err != nil {
+		return fmt.Errorf("unable to list attached policies: %w", err)
+	}
+
+	if client.lookupAttachedPolicy(attachedPolicies, *policy.PolicyName) != nil {
+
+		_, err := c.DetachRolePolicy(&iam.DetachRolePolicyInput{
+			PolicyArn: policy.PolicyArn,
+			RoleName: role.RoleName,
+		})
+
+		if err != nil {
+			return fmt.Errorf("unable to detach policy %s from role %s: %w", *policy.PolicyName, *role.RoleName, err)
+		}
+	}
+
+	return nil
+}
+
+
 func (client *Client) deletePolicy(name string, arn string) error {
 	c := iam.New(client.session)
 
