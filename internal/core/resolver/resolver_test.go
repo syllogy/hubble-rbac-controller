@@ -1,7 +1,6 @@
 package resolver
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
 	"github.com/stretchr/testify/assert"
@@ -94,13 +93,11 @@ func Test_DbtDeveloper(t *testing.T) {
 	}
 
 	resolver := Resolver{}
-	resolved, _ := resolver.Resolve(model)
-	b, _ := json.MarshalIndent(resolved, "", "   ")
-	fmt.Printf("%s\n", b)
+	redshiftModel, iamModel, googleModel, _ := resolver.Resolve(model)
 
 	dbUsername := fmt.Sprintf("%s_%s", data.dbtDeveloper.Username, data.dbtDeveloperRole.Name)
 
-	cluster := resolved.RedshiftModel.LookupCluster(data.dev.ClusterIdentifier)
+	cluster := redshiftModel.LookupCluster(data.dev.ClusterIdentifier)
 	database := cluster.LookupDatabase(data.dbtDeveloper.Username)
 	assert.NotNil(database, "database is registered")
 
@@ -111,11 +108,11 @@ func Test_DbtDeveloper(t *testing.T) {
 	dbUser := database.LookupUser(dbUsername)
 	assert.NotNil(dbUser, "a user name of the role and user has been registered")
 
-	user := resolved.GoogleModel.LookupUser(data.dbtDeveloper.Email)
+	user := googleModel.LookupUser(data.dbtDeveloper.Email)
 	assert.NotNil(user, "google login is registered")
 	assert.Equal([]string{data.dbtDeveloperRole.Name}, user.AssignedTo(), "google login has been assigned the expected role")
 
-	role := resolved.IamModel.LookupRole(data.dbtDeveloperRole.Name)
+	role := iamModel.LookupRole(data.dbtDeveloperRole.Name)
 	assert.NotNil(role, "AWS role for the role has been created")
 
 	referencedPolicy := role.LookupReferencedPolicy(data.allowAccessToTmpBucketPolicy.Arn)
@@ -145,13 +142,11 @@ func Test_BiAnalyst(t *testing.T) {
 	}
 
 	resolver := Resolver{}
-	resolved, _ := resolver.Resolve(model)
-	b, _ := json.MarshalIndent(resolved, "", "   ")
-	fmt.Printf("%s\n", b)
+	redshiftModel, iamModel, googleModel, _ := resolver.Resolve(model)
 
 	dbUsername := fmt.Sprintf("%s_%s", data.biAnalyst.Username, data.biAnalystRole.Name)
 
-	cluster := resolved.RedshiftModel.LookupCluster(data.unstable.ClusterIdentifier)
+	cluster := redshiftModel.LookupCluster(data.unstable.ClusterIdentifier)
 	database := cluster.LookupDatabase(data.unstable.Name)
 	assert.NotNil(database, "database is registered")
 
@@ -162,11 +157,11 @@ func Test_BiAnalyst(t *testing.T) {
 	dbUser := database.LookupUser(dbUsername)
 	assert.NotNil(dbUser, "a user name of the role and user has been registered")
 
-	user := resolved.GoogleModel.LookupUser(data.biAnalyst.Email)
+	user := googleModel.LookupUser(data.biAnalyst.Email)
 	assert.NotNil(user, "google login is registered")
 	assert.Equal([]string{data.biAnalystRole.Name}, user.AssignedTo(), "google login has been assigned the expected role")
 
-	role := resolved.IamModel.LookupRole(data.biAnalystRole.Name)
+	role := iamModel.LookupRole(data.biAnalystRole.Name)
 	assert.NotNil(role, "AWS role for the role has been created")
 
 	policy := role.LookupDatabaseLoginPolicyForUser(data.biAnalyst.Email)

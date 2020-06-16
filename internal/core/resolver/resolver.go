@@ -12,32 +12,24 @@ type Resolver struct {
 
 }
 
-type Model struct {
-	RedshiftModel redshift.Model
-	IamModel iam.Model
-	GoogleModel google.Model
-}
+func (r *Resolver) Resolve(grant hubble.Model) (redshift.Model, iam.Model, google.Model, error) {
 
-func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
-
-	model := Model{
-		RedshiftModel:redshift.Model{},
-		IamModel:iam.Model{},
-		GoogleModel:google.Model{},
-	}
+	redshiftModel:=redshift.Model{}
+	iamModel:=iam.Model{}
+	googleModel:=google.Model{}
 
 	for _,db := range grant.Databases {
-		cluster := model.RedshiftModel.DeclareCluster(db.ClusterIdentifier)
+		cluster := redshiftModel.DeclareCluster(db.ClusterIdentifier)
 		cluster.DeclareDatabase(db.Name)
 	}
 
 	for _,role := range grant.Roles {
-		model.IamModel.DeclareRole(role.Name)
+		iamModel.DeclareRole(role.Name)
 	}
 
 	for _,user := range grant.Users {
 
-		googleLogin := model.GoogleModel.DeclareUser(user.Email)
+		googleLogin := googleModel.DeclareUser(user.Email)
 
 		for _,role := range user.AssignedTo {
 
@@ -45,7 +37,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 			googleLogin.Assign(role.Name)
 
 			//Declare an AWS role for the given role
-			iamRole := model.IamModel.DeclareRole(role.Name)
+			iamRole := iamModel.DeclareRole(role.Name)
 
 			userAndRoleUsername := fmt.Sprintf("%s_%s", user.Username, role.Name)
 
@@ -55,7 +47,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				//Allow user/role to log into the database
 				databaseLoginPolicyForUserAndRole.Allow(db.ClusterIdentifier, db.Name)
 
-				cluster := model.RedshiftModel.DeclareCluster(db.ClusterIdentifier)
+				cluster := redshiftModel.DeclareCluster(db.ClusterIdentifier)
 
 				database := cluster.DeclareDatabase(db.Name)
 
@@ -84,7 +76,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 				//Allow user/role to log into the database
 				databaseLoginPolicyForUserAndRole.Allow(db.ClusterIdentifier, user.Username)
 
-				cluster := model.RedshiftModel.DeclareCluster(db.ClusterIdentifier)
+				cluster := redshiftModel.DeclareCluster(db.ClusterIdentifier)
 				database := cluster.DeclareDatabaseWithOwner(user.Username, userAndRoleUsername)
 
 				group := cluster.DeclareGroup(role.Name)
@@ -109,5 +101,5 @@ func (r *Resolver) Resolve(grant hubble.Model) (Model, error) {
 		}
 	}
 
-	return model, nil
+	return redshiftModel, iamModel, googleModel, nil
 }

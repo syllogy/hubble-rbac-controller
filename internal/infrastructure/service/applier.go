@@ -62,33 +62,33 @@ func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 
 	applier.logger.Info("Received hubble model", "model", model)
 
-	resolved, err := applier.resolver.Resolve(model)
+	redshiftModel, iamModel, googleModel, err := applier.resolver.Resolve(model)
 
 	if err != nil {
 		return err
 	}
 
-	applier.logger.Info("Applying redshift model", "model", resolved.RedshiftModel)
+	applier.logger.Info("Applying redshift model", "model", redshiftModel)
 	if !dryRun {
-		err = applier.redshiftApplier.Apply(resolved.RedshiftModel)
+		err = applier.redshiftApplier.Apply(redshiftModel)
 
 		if err != nil {
 			return err
 		}
 	}
 
-	applier.logger.Info("Applying IAM model", "model", resolved.IamModel)
+	applier.logger.Info("Applying IAM model", "model", iamModel)
 	if !dryRun {
-		err = applier.iamApplier.Apply(resolved.IamModel)
+		err = applier.iamApplier.Apply(iamModel)
 
 		if err != nil {
 			return err
 		}
 	}
 
-	applier.logger.Info("Applying Google model", "model", resolved.GoogleModel)
+	applier.logger.Info("Applying Google model", "model", googleModel)
 	if !dryRun {
-		err = applier.googleApplier.Apply(resolved.GoogleModel)
+		err = applier.googleApplier.Apply(googleModel)
 
 		if err != nil {
 			return err
