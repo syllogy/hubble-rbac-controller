@@ -71,6 +71,7 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 		dbNameTemplate := "arn:aws:redshift:%s:%s:dbname:%s/%s"
 
 		dbUser := fmt.Sprintf(dbUserTemplate, applier.region, applier.accountId, database.ClusterIdentifier, strings.ToLower(policy.DatabaseUsername))
+		dbDevUser := fmt.Sprintf(dbUserTemplate, applier.region, applier.accountId, database.ClusterIdentifier, "dev")
 		dbName := fmt.Sprintf(dbNameTemplate, applier.region, applier.accountId, database.ClusterIdentifier, database.Name)
 
 		statementTemplate := `
@@ -79,6 +80,7 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 	         "Action": "redshift:GetClusterCredentials",
 	         "Resource": [
 	             "%s",
+				 "%s",
 	             "%s"
 	         ],
 	         "Condition": {
@@ -88,7 +90,7 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 	         }
 	     }
 `
-		statement := fmt.Sprintf(statementTemplate, dbUser, dbName, policy.Email)
+		statement := fmt.Sprintf(statementTemplate, dbUser, dbDevUser, dbName, policy.Email)
 		statements = append(statements, statement)
 	}
 
