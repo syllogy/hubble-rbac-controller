@@ -43,7 +43,7 @@ func NewClient(user string, password string, addr string, database string, sslmo
 }
 
 func (c *Client) Close() {
-	c.Close()
+	c.db.Close()
 }
 
 func (c *Client) bool(sql string) (bool, error) {

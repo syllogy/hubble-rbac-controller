@@ -144,6 +144,8 @@ func (applier *Applier) createDatabase(database *redshiftCore.Database) error {
 
 	client, err := applier.clientGroup.MasterDatabase(database.ClusterIdentifier)
 
+	defer client.Close()
+
 	if err != nil {
 		return err
 	}
@@ -180,6 +182,8 @@ func (applier *Applier) createDatabase(database *redshiftCore.Database) error {
 
 	client, err = applier.clientGroup.ForDatabase(database)
 
+	defer client.Close()
+
 	if err != nil {
 		return err
 	}
@@ -198,6 +202,8 @@ func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGrou
 	groupHasAccessToDatabase := database.LookupGroup(managedGroup.Name) != nil
 
 	client, err := applier.clientGroup.ForDatabase(database)
+
+	defer client.Close()
 
 	if err != nil {
 		return fmt.Errorf("no client for database %s: %w", database.Identifier(), err)
@@ -342,6 +348,8 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		}
 
 		client, err := applier.clientGroup.MasterDatabase(cluster.Identifier)
+
+	defer client.Close()
 
 		if err != nil {
 			return fmt.Errorf("no client for cluster %s: %w", cluster.Identifier, err)
