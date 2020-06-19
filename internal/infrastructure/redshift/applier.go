@@ -6,6 +6,7 @@ import (
 	"github.com/lib/pq"
 	redshiftCore "github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 	"github.com/prometheus/common/log"
+	"sync"
 )
 
 type ApplyEventType int
@@ -327,6 +328,216 @@ func (applier *Applier) revokeAllGrants(databaseClient *Client, group string, da
 }
 
 
+func (applier *Applier) applyCluster(cluster *redshiftCore.Cluster) error {
+
+	//Ensure that all managed databases exist
+	applier.logger.Info("Creating databases")
+	for _, managedDatabase := range cluster.Databases {
+		err := applier.createDatabase(managedDatabase)
+
+		if err != nil {
+			return fmt.Errorf("unable to create database %s in cluster %s: %w", managedDatabase.Name, cluster.Identifier, err)
+		}
+	}
+
+	client, err := applier.clientGroup.MasterDatabase(cluster.Identifier)
+
+	defer client.Close()
+
+	if err != nil {
+		return fmt.Errorf("no client for cluster %s: %w", cluster.Identifier, err)
+	}
+
+	groups, err := client.Groups()
+	if err != nil {
+		return fmt.Errorf("unable to list groups for %s: %w", cluster.Identifier, err)
+	}
+
+	databases, err := client.Databases()
+
+	if err != nil {
+		return fmt.Errorf("unable to list databases for cluster %s: %w", cluster.Identifier, err)
+	}
+
+	//for all the databases that are unmanaged we need to make sure that no groups have dangling grants on the schemas in those databases,
+	//if any do we won't be able to remove them if they ever become unmanaged
+	applier.logger.Info("Revoking dangling grants in unmanaged databases")
+	for _, database := range databases {
+		if !applier.isDatabaseExcluded(database) && cluster.LookupDatabase(database) == nil {
+
+			applier.logger.Info(fmt.Sprintf("Revoking dangling grants in database %s for %s", database, cluster.Identifier))
+			databaseClient, err := applier.clientGroup.Database(cluster.Identifier, database)
+
+			if err != nil {
+				return fmt.Errorf("no client for database %s: %w", database, err)
+			}
+
+			for _, group := range groups {
+				if err = applier.revokeAllGrants(databaseClient, group, database); err != nil {
+					return fmt.Errorf("unable to revoke grants for group %s in cluster %s %w", group, cluster.Identifier, err)
+				}
+			}
+		}
+	}
+
+	//Ensure that all managed groups exists
+	applier.logger.Info("Creating groups")
+	for _, managedGroup := range cluster.Groups {
+		err = client.CreateGroup(managedGroup.Name)
+
+		if err != nil {
+			return fmt.Errorf("failed to create group %s in %s: %w", managedGroup.Name, cluster.Identifier, err)
+		}
+		applier.eventListener.Handle(Event{
+			EventType: EnsureGroupExists,
+			Name:      managedGroup.Name,
+			Cluster:   cluster.Identifier,
+			Database:  "",
+		})
+	}
+
+	//Ensure that all managed users exists
+	applier.logger.Info("Creating users")
+	for _, managedUser := range cluster.Users {
+		if applier.isUserExcluded(managedUser.Name) {
+			return fmt.Errorf("user %s has been explicitly excluded and cannot be managed", managedUser.Name)
+		}
+
+		err := client.CreateUser(managedUser.Name)
+
+		if err != nil {
+			return fmt.Errorf("unable to create user %s in %s: %w", managedUser.Name, cluster.Identifier, err)
+		}
+
+		applier.eventListener.Handle(Event{
+			EventType: EnsureUserExists,
+			Name:      managedUser.Name,
+			Cluster:   cluster.Identifier,
+			Database:  "",
+		})
+	}
+
+	applier.logger.Info("Updating grants for groups")
+	groups, err = client.Groups()
+	if err != nil {
+		return fmt.Errorf("unable to list groups for %s: %w", cluster.Identifier, err)
+	}
+
+	for _, database := range cluster.Databases {
+
+		databaseClient, err := applier.clientGroup.ForDatabase(database)
+
+		if err != nil {
+			return fmt.Errorf("no client for database %s: %w", database.Identifier(), err)
+		}
+
+		//Ensure that all the desired grants have been set for this group on the database
+		for _, managedGroup := range cluster.Groups {
+			if err = applier.applyGrants(database, managedGroup); err != nil {
+				return fmt.Errorf("unable to update group %s for %s in cluster %s: %w", managedGroup.Name, database.Name, cluster.Identifier, err)
+			}
+		}
+
+		//If a group has become unmanaged we need to make sure that it doesnt have dangling grants on any schemas,
+		//if it does we won't be able to remove it (which happens below)
+		for _, group := range groups {
+			if cluster.LookupGroup(group) == nil {
+				if err = applier.revokeAllGrants(databaseClient, group, database.Name); err != nil {
+					return fmt.Errorf("unable to revoke grants for group %s in cluster %s %w", group, cluster.Identifier, err)
+				}
+			}
+		}
+	}
+
+	//Ensure that users are members of the desired group
+	applier.logger.Info("Updating group memberships")
+	for _,managedUser := range cluster.Users {
+		alreadyPartOf, err := client.PartOf(managedUser.Name)
+
+		if err != nil {
+			return fmt.Errorf("unable to list group membership for user %s in cluster %s: %w", managedUser.Name, cluster.Identifier, err)
+		}
+
+		//If the user is already part of some other group we should remove the membership
+		for _,groupName := range alreadyPartOf {
+			if managedUser.MemberOf.Name != groupName {
+				err = client.RemoveUserFromGroup(managedUser.Name, groupName)
+				applier.eventListener.Handle(Event{
+					EventType: EnsureUserIsNotInGroup,
+					Name:      fmt.Sprintf("%s->%s", managedUser.Name, groupName),
+					Cluster:   cluster.Identifier,
+					Database:  "",
+				})
+				if err != nil {
+					return fmt.Errorf("unable to remove user %s from group %s in %s: %w", managedUser.Name, groupName, cluster.Identifier, err)
+				}
+			}
+		}
+
+		err = client.AddUserToGroup(managedUser.Name, managedUser.MemberOf.Name)
+		applier.eventListener.Handle(Event{
+			EventType: EnsureUserIsInGroup,
+			Name:      fmt.Sprintf("%s->%s", managedUser.Name, managedUser.MemberOf.Name),
+			Cluster:   cluster.Identifier,
+			Database:  "",
+		})
+		if err != nil {
+			return fmt.Errorf("unable to add user %s to group %s in %s: %w", managedUser.Name, managedUser.MemberOf.Name, cluster.Identifier, err)
+		}
+	}
+
+	//We remove all users that are not part of the model from the cluster
+	applier.logger.Info("Deleting unmanaged users")
+	users, err := client.Users()
+	if err != nil {
+		return fmt.Errorf("unable to list users for %s: %w", cluster.Identifier, err)
+	}
+
+	for _, username := range users {
+		if !applier.isUserExcluded(username) && cluster.LookupUser(username) == nil {
+			err = client.DeleteUser(username)
+			applier.eventListener.Handle(Event{
+				EventType: EnsureUserDeleted,
+				Name:      username,
+				Cluster:   cluster.Identifier,
+				Database:  "",
+			})
+
+			if err != nil {
+				if err.(*pq.Error).Code == objectInUse {
+					log.Warnf("unable to delete user %s in cluster %s because it in use. This will happen if the user is a DbtDeveloper role because it owns a database. You'll need to delete manually", username, cluster.Identifier)
+				} else {
+					return fmt.Errorf("unable to delete user %s in %s: %w", username, cluster.Identifier, err)
+				}
+			}
+		}
+	}
+
+	//We remove all groups that are not part of the model from the cluster
+	applier.logger.Info("Deleting unmanaged groups")
+	groups, err = client.Groups()
+	if err != nil {
+		return fmt.Errorf("unable to list groups for %s: %w", cluster.Identifier, err)
+	}
+
+	for _, groupName := range groups {
+		if cluster.LookupGroup(groupName) == nil {
+			err = client.DeleteGroup(groupName)
+			applier.eventListener.Handle(Event{
+				EventType: EnsureGroupDeleted,
+				Name:      groupName,
+				Cluster:   cluster.Identifier,
+				Database:  "",
+			})
+			if err != nil {
+				return fmt.Errorf("unable to delete group %s in %s: %w", groupName, cluster.Identifier, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (applier *Applier) Apply(model redshiftCore.Model) error {
 
 	err := model.Validate()
@@ -335,213 +546,33 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		return err
 	}
 
+	wgDone := make(chan bool)
+	fatalErrors := make(chan error)
+	var wg sync.WaitGroup
+
 	for _, cluster := range model.Clusters {
+		wg.Add(1)
 
-		//Ensure that all managed databases exist
-		applier.logger.Info("Creating databases")
-		for _, managedDatabase := range cluster.Databases {
-			err := applier.createDatabase(managedDatabase)
-
+		go func(cluster *redshiftCore.Cluster) {
+			defer wg.Done()
+			err = applier.applyCluster(cluster)
 			if err != nil {
-				return fmt.Errorf("unable to create database %s in cluster %s: %w", managedDatabase.Name, cluster.Identifier, err)
+				fatalErrors <- err
 			}
-		}
-
-		client, err := applier.clientGroup.MasterDatabase(cluster.Identifier)
-
-	defer client.Close()
-
-		if err != nil {
-			return fmt.Errorf("no client for cluster %s: %w", cluster.Identifier, err)
-		}
-
-		groups, err := client.Groups()
-		if err != nil {
-			return fmt.Errorf("unable to list groups for %s: %w", cluster.Identifier, err)
-		}
-
-		databases, err := client.Databases()
-
-		if err != nil {
-			return fmt.Errorf("unable to list databases for cluster %s: %w", cluster.Identifier, err)
-		}
-
-		//for all the databases that are unmanaged we need to make sure that no groups have dangling grants on the schemas in those databases,
-		//if any do we won't be able to remove them if they ever become unmanaged
-		applier.logger.Info("Revoking dangling grants in unmanaged databases")
-		for _, database := range databases {
-			if !applier.isDatabaseExcluded(database) && cluster.LookupDatabase(database) == nil {
-
-				applier.logger.Info(fmt.Sprintf("Revoking dangling grants in database %s for %s", database, cluster.Identifier))
-				databaseClient, err := applier.clientGroup.Database(cluster.Identifier, database)
-
-				if err != nil {
-					return fmt.Errorf("no client for database %s: %w", database, err)
-				}
-
-				for _, group := range groups {
-					if err = applier.revokeAllGrants(databaseClient, group, database); err != nil {
-						return fmt.Errorf("unable to revoke grants for group %s in cluster %s %w", group, cluster.Identifier, err)
-					}
-				}
-			}
-		}
-
-		//Ensure that all managed groups exists
-		applier.logger.Info("Creating groups")
-		for _, managedGroup := range cluster.Groups {
-			err = client.CreateGroup(managedGroup.Name)
-
-			if err != nil {
-				return fmt.Errorf("failed to create group %s in %s: %w", managedGroup.Name, cluster.Identifier, err)
-			}
-			applier.eventListener.Handle(Event{
-				EventType: EnsureGroupExists,
-				Name:      managedGroup.Name,
-				Cluster:   cluster.Identifier,
-				Database:  "",
-			})
-		}
-
-		//Ensure that all managed users exists
-		applier.logger.Info("Creating users")
-		for _, managedUser := range cluster.Users {
-			if applier.isUserExcluded(managedUser.Name) {
-				return fmt.Errorf("user %s has been explicitly excluded and cannot be managed", managedUser.Name)
-			}
-
-			err := client.CreateUser(managedUser.Name)
-
-			if err != nil {
-				return fmt.Errorf("unable to create user %s in %s: %w", managedUser.Name, cluster.Identifier, err)
-			}
-
-			applier.eventListener.Handle(Event{
-				EventType: EnsureUserExists,
-				Name:      managedUser.Name,
-				Cluster:   cluster.Identifier,
-				Database:  "",
-			})
-		}
-
-		applier.logger.Info("Updating grants for groups")
-		groups, err = client.Groups()
-		if err != nil {
-			return fmt.Errorf("unable to list groups for %s: %w", cluster.Identifier, err)
-		}
-
-		for _, database := range cluster.Databases {
-
-			databaseClient, err := applier.clientGroup.ForDatabase(database)
-
-			if err != nil {
-				return fmt.Errorf("no client for database %s: %w", database.Identifier(), err)
-			}
-
-			//Ensure that all the desired grants have been set for this group on the database
-			for _, managedGroup := range cluster.Groups {
-				if err = applier.applyGrants(database, managedGroup); err != nil {
-					return fmt.Errorf("unable to update group %s for %s in cluster %s: %w", managedGroup.Name, database.Name, cluster.Identifier, err)
-				}
-			}
-
-			//If a group has become unmanaged we need to make sure that it doesnt have dangling grants on any schemas,
-			//if it does we won't be able to remove it (which happens below)
-			for _, group := range groups {
-				if cluster.LookupGroup(group) == nil {
-					if err = applier.revokeAllGrants(databaseClient, group, database.Name); err != nil {
-						return fmt.Errorf("unable to revoke grants for group %s in cluster %s %w", group, cluster.Identifier, err)
-					}
-				}
-			}
-		}
-
-		//Ensure that users are members of the desired group
-		applier.logger.Info("Updating group memberships")
-		for _,managedUser := range cluster.Users {
-			alreadyPartOf, err := client.PartOf(managedUser.Name)
-
-			if err != nil {
-				return fmt.Errorf("unable to list group membership for user %s in cluster %s: %w", managedUser.Name, cluster.Identifier, err)
-			}
-
-			//If the user is already part of some other group we should remove the membership
-			for _,groupName := range alreadyPartOf {
-				if managedUser.MemberOf.Name != groupName {
-					err = client.RemoveUserFromGroup(managedUser.Name, groupName)
-					applier.eventListener.Handle(Event{
-						EventType: EnsureUserIsNotInGroup,
-						Name:      fmt.Sprintf("%s->%s", managedUser.Name, groupName),
-						Cluster:   cluster.Identifier,
-						Database:  "",
-					})
-					if err != nil {
-						return fmt.Errorf("unable to remove user %s from group %s in %s: %w", managedUser.Name, groupName, cluster.Identifier, err)
-					}
-				}
-			}
-
-			err = client.AddUserToGroup(managedUser.Name, managedUser.MemberOf.Name)
-			applier.eventListener.Handle(Event{
-				EventType: EnsureUserIsInGroup,
-				Name:      fmt.Sprintf("%s->%s", managedUser.Name, managedUser.MemberOf.Name),
-				Cluster:   cluster.Identifier,
-				Database:  "",
-			})
-			if err != nil {
-				return fmt.Errorf("unable to add user %s to group %s in %s: %w", managedUser.Name, managedUser.MemberOf.Name, cluster.Identifier, err)
-			}
-		}
-
-		//We remove all users that are not part of the model from the cluster
-		applier.logger.Info("Deleting unmanaged users")
-		users, err := client.Users()
-		if err != nil {
-			return fmt.Errorf("unable to list users for %s: %w", cluster.Identifier, err)
-		}
-
-		for _, username := range users {
-			if !applier.isUserExcluded(username) && cluster.LookupUser(username) == nil {
-				err = client.DeleteUser(username)
-				applier.eventListener.Handle(Event{
-					EventType: EnsureUserDeleted,
-					Name:      username,
-					Cluster:   cluster.Identifier,
-					Database:  "",
-				})
-
-				if err != nil {
-					if err.(*pq.Error).Code == objectInUse {
-						log.Warnf("unable to delete user %s in cluster %s because it in use. This will happen if the user is a DbtDeveloper role because it owns a database. You'll need to delete manually", username, cluster.Identifier)
-					} else {
-						return fmt.Errorf("unable to delete user %s in %s: %w", username, cluster.Identifier, err)
-					}
-				}
-			}
-		}
-
-		//We remove all groups that are not part of the model from the cluster
-		applier.logger.Info("Deleting unmanaged groups")
-		groups, err = client.Groups()
-		if err != nil {
-			return fmt.Errorf("unable to list groups for %s: %w", cluster.Identifier, err)
-		}
-
-		for _, groupName := range groups {
-			if cluster.LookupGroup(groupName) == nil {
-				err = client.DeleteGroup(groupName)
-				applier.eventListener.Handle(Event{
-					EventType: EnsureGroupDeleted,
-					Name:      groupName,
-					Cluster:   cluster.Identifier,
-					Database:  "",
-				})
-				if err != nil {
-					return fmt.Errorf("unable to delete group %s in %s: %w", groupName, cluster.Identifier, err)
-				}
-			}
-		}
+		}(cluster)
 	}
 
-	return nil
+	go func() {
+		wg.Wait()
+		close(wgDone)
+	}()
+
+	select {
+	case <-wgDone:
+		return nil
+	case err := <-fatalErrors:
+		close(fatalErrors)
+		return err
+	}
+
 }
