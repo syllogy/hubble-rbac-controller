@@ -14,8 +14,8 @@ type RedshiftEventRecorder struct {
 	logger logr.Logger
 }
 
-func (e *RedshiftEventRecorder) Handle(eventType redshift.ApplyEventType, name string) {
-	e.logger.Info("Event occurred", "eventType", eventType.ToString(), "name", name)
+func (e *RedshiftEventRecorder) Handle(event redshift.Event) {
+	e.logger.Info("Event occurred", "eventType", event.EventType.ToString(), "name", event.Name, "cluster", event.Cluster, "database", event.Database)
 }
 
 type IamEventRecorder struct {

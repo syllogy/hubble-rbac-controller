@@ -6,9 +6,9 @@ type EventRecorder struct {
 	events []ApplyEventType
 }
 
-func (e *EventRecorder) Handle(eventType ApplyEventType, name string) {
-	log.Infof("Event %s:%s occurred", eventType.ToString(), name)
-	e.events = append(e.events, eventType)
+func (e *EventRecorder) Handle(event Event) {
+	log.Infof("Event %s:%s occurred", event.EventType.ToString(), event.Name)
+	e.events = append(e.events, event.EventType)
 }
 
 func (e *EventRecorder) Reset() {

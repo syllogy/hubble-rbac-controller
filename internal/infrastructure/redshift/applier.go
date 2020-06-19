@@ -50,8 +50,15 @@ func (t ApplyEventType) ToString() string {
 	}
 }
 
+type Event struct {
+	EventType ApplyEventType
+	Name string
+	Cluster string
+	Database string
+}
+
 type ApplyEventLister interface {
-	Handle(eventType ApplyEventType, name string)
+	Handle(event Event)
 }
 
 /*
@@ -146,7 +153,12 @@ func (applier *Applier) createDatabase(database *redshiftCore.Database) error {
 			return fmt.Errorf("user %s has been explicitly excluded and cannot be managed", *database.Owner)
 		}
 
-		applier.eventListener.Handle(EnsureUserExists, database.Name)
+		applier.eventListener.Handle(Event{
+			EventType: EnsureUserExists,
+			Name:      database.Name,
+			Cluster:   database.ClusterIdentifier,
+			Database:  database.Name,
+		})
 		err := client.CreateUser(*database.Owner)
 
 		if err != nil {
@@ -154,7 +166,12 @@ func (applier *Applier) createDatabase(database *redshiftCore.Database) error {
 		}
 	}
 
-	applier.eventListener.Handle(EnsureDatabaseExists, database.Name)
+	applier.eventListener.Handle(Event{
+		EventType: EnsureDatabaseExists,
+		Name:      database.Name,
+		Cluster:   database.ClusterIdentifier,
+		Database:  database.Name,
+	})
 	err = client.CreateDatabase(database.Name, database.Owner)
 
 	if err != nil {
@@ -198,8 +215,12 @@ func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGrou
 
 		if !schemaIsGranted && !applier.isSchemaExcluded(existingGrantedSchema) {
 			err = client.Revoke(managedGroup.Name, existingGrantedSchema)
-			applier.eventListener.Handle(EnsureAccessHasBeenRevokedFromSchema, fmt.Sprintf("%s->%s", managedGroup.Name, existingGrantedSchema))
-
+			applier.eventListener.Handle(Event{
+				EventType: EnsureAccessHasBeenRevokedFromSchema,
+				Name:      fmt.Sprintf("%s->%s", managedGroup.Name, existingGrantedSchema),
+				Cluster:   database.ClusterIdentifier,
+				Database:  "",
+			})
 			if err != nil {
 				return fmt.Errorf("failed to revoke access to schema %s for group %s in %s: %w", existingGrantedSchema, managedGroup.Name, database.Identifier(), err)
 			}
@@ -215,15 +236,25 @@ func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGrou
 			}
 
 			err = client.CreateSchema(managedSchema.Name)
-			applier.eventListener.Handle(EnsureSchemaExists, managedSchema.Name)
-
+			applier.eventListener.Handle(
+				Event{
+					EventType: EnsureSchemaExists,
+					Name:      managedSchema.Name,
+					Cluster:   database.ClusterIdentifier,
+					Database:  database.Name,
+				})
 			if err != nil {
 				return fmt.Errorf("failed to create schema %s on database %s: %w", managedSchema.Name, database.Identifier(), err)
 			}
 
 			err = client.Grant(managedGroup.Name, managedSchema.Name)
-			applier.eventListener.Handle(EnsureAccessIsGrantedToSchema, fmt.Sprintf("%s->%s", managedGroup.Name, managedSchema.Name))
-
+			applier.eventListener.Handle(
+				Event{
+					EventType: EnsureAccessIsGrantedToSchema,
+					Name:      fmt.Sprintf("%s->%s", managedGroup.Name, managedSchema.Name),
+					Cluster:   database.ClusterIdentifier,
+					Database:  database.Name,
+				})
 			if err != nil {
 				return fmt.Errorf("failed to grant acccess to schema %s for group %s on database %s: %w", managedSchema.Name, managedGroup.Name, database.Identifier(), err)
 			}
@@ -236,15 +267,25 @@ func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGrou
 			}
 
 			err = client.CreateExternalSchema(managedSchema.Name, managedSchema.GlueDatabaseName, applier.awsAccountId)
-			applier.eventListener.Handle(EnsureSchemaExists, managedSchema.Name)
-
+			applier.eventListener.Handle(
+				Event{
+					EventType: EnsureSchemaExists,
+					Name:       managedSchema.Name,
+					Cluster:   database.ClusterIdentifier,
+					Database:  database.Name,
+				})
 			if err != nil {
 				return fmt.Errorf("failed to create schema %s on database %s: %w", managedSchema.Name, database.Identifier(), err)
 			}
 
 			err = client.Grant(managedGroup.Name, managedSchema.Name)
-			applier.eventListener.Handle(EnsureAccessIsGrantedToSchema, fmt.Sprintf("%s->%s", managedGroup.Name, managedSchema.Name))
-
+			applier.eventListener.Handle(
+				Event{
+					EventType: EnsureAccessIsGrantedToSchema,
+					Name:      fmt.Sprintf("%s->%s", managedGroup.Name, managedSchema.Name),
+					Cluster:   database.ClusterIdentifier,
+					Database:  database.Name,
+				})
 			if err != nil {
 				return fmt.Errorf("failed to grant acccess to schema %s for group %s on database %s: %w", managedSchema.Name, managedGroup.Name, database.Identifier(), err)
 			}
@@ -264,7 +305,12 @@ func (applier *Applier) revokeAllGrants(databaseClient *Client, group string, da
 	for _, existingGrantedSchema := range existingGrantedSchemas {
 		if !applier.isSchemaExcluded(existingGrantedSchema) {
 			err = databaseClient.Revoke(group, existingGrantedSchema)
-			applier.eventListener.Handle(EnsureAccessHasBeenRevokedFromSchema, fmt.Sprintf("%s->%s", group, existingGrantedSchema))
+			applier.eventListener.Handle(Event{
+				EventType: EnsureAccessHasBeenRevokedFromSchema,
+				Name:      fmt.Sprintf("%s->%s", group, existingGrantedSchema),
+				Cluster:   "",
+				Database:  databaseName,
+			})
 
 			if err != nil {
 				return fmt.Errorf("failed to revoke access to schema %s for group %s in %s: %w", existingGrantedSchema, group, databaseName, err)
@@ -341,7 +387,12 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 			if err != nil {
 				return fmt.Errorf("failed to create group %s in %s: %w", managedGroup.Name, cluster.Identifier, err)
 			}
-			applier.eventListener.Handle(EnsureGroupExists, managedGroup.Name)
+			applier.eventListener.Handle(Event{
+				EventType: EnsureGroupExists,
+				Name:      managedGroup.Name,
+				Cluster:   cluster.Identifier,
+				Database:  "",
+			})
 		}
 
 		//Ensure that all managed users exists
@@ -357,7 +408,12 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 				return fmt.Errorf("unable to create user %s in %s: %w", managedUser.Name, cluster.Identifier, err)
 			}
 
-			applier.eventListener.Handle(EnsureUserExists, managedUser.Name)
+			applier.eventListener.Handle(Event{
+				EventType: EnsureUserExists,
+				Name:      managedUser.Name,
+				Cluster:   cluster.Identifier,
+				Database:  "",
+			})
 		}
 
 		applier.logger.Info("Updating grants for groups")
@@ -405,8 +461,12 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 			for _,groupName := range alreadyPartOf {
 				if managedUser.MemberOf.Name != groupName {
 					err = client.RemoveUserFromGroup(managedUser.Name, groupName)
-					applier.eventListener.Handle(EnsureUserIsNotInGroup, fmt.Sprintf("%s->%s", managedUser.Name, groupName))
-
+					applier.eventListener.Handle(Event{
+						EventType: EnsureUserIsNotInGroup,
+						Name:      fmt.Sprintf("%s->%s", managedUser.Name, groupName),
+						Cluster:   cluster.Identifier,
+						Database:  "",
+					})
 					if err != nil {
 						return fmt.Errorf("unable to remove user %s from group %s in %s: %w", managedUser.Name, groupName, cluster.Identifier, err)
 					}
@@ -414,8 +474,12 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 			}
 
 			err = client.AddUserToGroup(managedUser.Name, managedUser.MemberOf.Name)
-			applier.eventListener.Handle(EnsureUserIsInGroup, fmt.Sprintf("%s->%s", managedUser.Name, managedUser.MemberOf.Name))
-
+			applier.eventListener.Handle(Event{
+				EventType: EnsureUserIsInGroup,
+				Name:      fmt.Sprintf("%s->%s", managedUser.Name, managedUser.MemberOf.Name),
+				Cluster:   cluster.Identifier,
+				Database:  "",
+			})
 			if err != nil {
 				return fmt.Errorf("unable to add user %s to group %s in %s: %w", managedUser.Name, managedUser.MemberOf.Name, cluster.Identifier, err)
 			}
@@ -431,7 +495,12 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		for _, username := range users {
 			if !applier.isUserExcluded(username) && cluster.LookupUser(username) == nil {
 				err = client.DeleteUser(username)
-				applier.eventListener.Handle(EnsureUserDeleted, username)
+				applier.eventListener.Handle(Event{
+					EventType: EnsureUserDeleted,
+					Name:      username,
+					Cluster:   cluster.Identifier,
+					Database:  "",
+				})
 
 				if err != nil {
 					if err.(*pq.Error).Code == objectInUse {
@@ -453,8 +522,12 @@ func (applier *Applier) Apply(model redshiftCore.Model) error {
 		for _, groupName := range groups {
 			if cluster.LookupGroup(groupName) == nil {
 				err = client.DeleteGroup(groupName)
-				applier.eventListener.Handle(EnsureGroupDeleted, groupName)
-
+				applier.eventListener.Handle(Event{
+					EventType: EnsureGroupDeleted,
+					Name:      groupName,
+					Cluster:   cluster.Identifier,
+					Database:  "",
+				})
 				if err != nil {
 					return fmt.Errorf("unable to delete group %s in %s: %w", groupName, cluster.Identifier, err)
 				}
