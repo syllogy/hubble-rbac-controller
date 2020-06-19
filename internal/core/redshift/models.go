@@ -116,7 +116,7 @@ func (c *Cluster) DeclareUser(name string, memberOf *Group) *User {
 
 func (c *Cluster) LookupGroup(name string) *Group {
 	for _,user := range c.Groups {
-		if user.Name == name {
+		if user.Name == strings.ToLower(name)  {
 			return user
 		}
 	}
@@ -209,11 +209,17 @@ func (d *Database) Identifier() string {
 }
 
 func (g *Group) GrantSchema(schema *Schema) {
-	g.GrantedSchemas = append(g.GrantedSchemas, schema)
+	existing := g.LookupGrantedSchema(schema.Name)
+	if existing == nil {
+		g.GrantedSchemas = append(g.GrantedSchemas, schema)
+	}
 }
 
 func (g *Group) GrantExternalSchema(schema *ExternalSchema) {
-	g.GrantedExternalSchemas = append(g.GrantedExternalSchemas, schema)
+	existing := g.LookupGrantedExternalSchema(schema.Name)
+	if existing == nil {
+		g.GrantedExternalSchemas = append(g.GrantedExternalSchemas, schema)
+	}
 }
 
 
