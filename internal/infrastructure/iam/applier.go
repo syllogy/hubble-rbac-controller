@@ -70,11 +70,12 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 		dbUserTemplate := "arn:aws:redshift:%s:%s:dbuser:%s/%s"
 		dbNameTemplate := "arn:aws:redshift:%s:%s:dbname:%s/%s"
 
-		dbUser := fmt.Sprintf(dbUserTemplate, applier.region, applier.accountId, database.ClusterIdentifier, strings.ToLower(policy.DatabaseUsername))
-		dbDevUser := fmt.Sprintf(dbUserTemplate, applier.region, applier.accountId, database.ClusterIdentifier, "dev")
-		dbName := fmt.Sprintf(dbNameTemplate, applier.region, applier.accountId, database.ClusterIdentifier, database.Name)
+		if database.Name == "looker_dev" || database.Name == "looker_jhh" {
+			dbUser := fmt.Sprintf(dbUserTemplate, applier.region, applier.accountId, database.ClusterIdentifier, strings.ToLower(policy.DatabaseUsername))
+			dbDevUser := fmt.Sprintf(dbUserTemplate, applier.region, applier.accountId, database.ClusterIdentifier, "dev")
+			dbName := fmt.Sprintf(dbNameTemplate, applier.region, applier.accountId, database.ClusterIdentifier, database.Name)
 
-		statementTemplate := `
+			statementTemplate := `
 	     {
 	         "Effect": "Allow",
 	         "Action": "redshift:GetClusterCredentials",
@@ -90,8 +91,32 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 	         }
 	     }
 `
-		statement := fmt.Sprintf(statementTemplate, dbUser, dbDevUser, dbName, policy.Email)
-		statements = append(statements, statement)
+			statement := fmt.Sprintf(statementTemplate, dbUser, dbDevUser, dbName, policy.Email)
+			statements = append(statements, statement)
+		} else {
+			dbUser := fmt.Sprintf(dbUserTemplate, applier.region, applier.accountId, database.ClusterIdentifier, strings.ToLower(policy.DatabaseUsername))
+			dbName := fmt.Sprintf(dbNameTemplate, applier.region, applier.accountId, database.ClusterIdentifier, database.Name)
+
+			statementTemplate := `
+	     {
+	         "Effect": "Allow",
+	         "Action": "redshift:GetClusterCredentials",
+	         "Resource": [
+	             "%s",
+	             "%s"
+	         ],
+	         "Condition": {
+	             "StringLike": {
+	                 "aws:userid": "*:%s"
+	             }
+	         }
+	     }
+`
+			statement := fmt.Sprintf(statementTemplate, dbUser, dbName, policy.Email)
+			statements = append(statements, statement)
+		}
+
+
 	}
 
 		documentTemplate := `
