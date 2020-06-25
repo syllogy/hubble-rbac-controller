@@ -96,17 +96,6 @@ func TestApplier_Apply(t *testing.T) {
 	iamClient := iam.New(session)
 	iamApplier := iam.NewApplier(iamClient, accountId, region, &IamEventRecorder{logger:logger}, logger)
 
-	redshiftClient, err := redshift.NewClient(
-		localhostCredentials.Username,
-		localhostCredentials.Password,
-		localhostCredentials.Host,
-		"prod",
-		localhostCredentials.Sslmode,
-		localhostCredentials.Port,
-		localhostCredentials.ExternalSchemasSupported,
-		)
-	failOnError(err)
-
 	redshiftExpected := redshift.NewRedshiftState()
 	redshiftExpected.Users = []string{"lunarway"}
 	redshiftExpected.GroupMemberships = map[string][]string{"lunarway": {}}
@@ -117,13 +106,25 @@ func TestApplier_Apply(t *testing.T) {
 
 	model := hubble.Model{}
 	user := model.AddUser("jwr", "jwr@lunar.app")
-	err = applier.Apply(model, false)
+	err := applier.Apply(model, false)
 	failOnError(err)
 
 	log.Info("Create database")
 	database := model.AddDatabase("hubble", "prod")
 	err = applier.Apply(model,false)
 	failOnError(err)
+
+	redshiftClient, err := redshift.NewClient(
+		localhostCredentials.Username,
+		localhostCredentials.Password,
+		localhostCredentials.Host,
+		"prod",
+		localhostCredentials.Sslmode,
+		localhostCredentials.Port,
+		localhostCredentials.ExternalSchemasSupported,
+	)
+	failOnError(err)
+
 
 	redshiftActual := redshift.FetchState(redshiftClient)
 	redshift.AssertState(assert, redshiftActual, redshiftExpected, "database should be unaffected")
