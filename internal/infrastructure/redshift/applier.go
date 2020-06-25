@@ -198,7 +198,7 @@ func (applier *Applier) createDatabase(database *redshiftCore.Database) error {
 	return err
 }
 
-func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGroup *redshiftCore.Group) error {
+func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGroup *redshiftCore.DatabaseGroup) error {
 
 	groupHasAccessToDatabase := database.LookupGroup(managedGroup.Name) != nil
 
@@ -432,7 +432,7 @@ func (applier *Applier) applyCluster(cluster *redshiftCore.Cluster) error {
 		}
 
 		//Ensure that all the desired grants have been set for this group on the database
-		for _, managedGroup := range cluster.Groups {
+		for _, managedGroup := range database.Groups {
 			if err = applier.applyGrants(database, managedGroup); err != nil {
 				return fmt.Errorf("unable to update group %s for %s in cluster %s: %w", managedGroup.Name, database.Name, cluster.Identifier, err)
 			}

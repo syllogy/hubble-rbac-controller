@@ -61,7 +61,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	biGroup := cluster.DeclareGroup("bianalyst")
 	cluster.DeclareUser("jwr_bianalyst", biGroup)
 	database := cluster.DeclareDatabase("jwr")
-	database.DeclareGroup("bianalyst")
+	biDatabaseGroup := database.DeclareGroup("bianalyst")
 	database.DeclareUser("jwr_bianalyst")
 
 	err = applier.Apply(model)
@@ -84,7 +84,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	assert.Equal(1, eventRecorder.Count(EnsureUserIsInGroup))
 
 	//Grant access to "bi"
-	biGroup.GrantSchema(&redshift.Schema{ Name: "bi" })
+	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "bi" })
 
 	err = applier.Apply(model)
 	assert.NoError(err)
@@ -101,7 +101,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	assert.Equal(1, eventRecorder.Count(EnsureAccessIsGrantedToSchema))
 
 	//Grant access to "test"
-	biGroup.GrantSchema(&redshift.Schema{ Name: "test" })
+	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "test" })
 
 	err = applier.Apply(model)
 	assert.NoError(err)
@@ -131,8 +131,8 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	//Add an AML user
 	amlGroup := cluster.DeclareGroup("aml")
-	database.DeclareGroup("aml")
-	amlGroup.GrantExternalSchema(&redshift.ExternalSchema{ Name: "lwgoevents", GlueDatabaseName: "lwgoevents" })
+	amlDatabaseGroup := database.DeclareGroup("aml")
+	amlDatabaseGroup.GrantExternalSchema(&redshift.ExternalSchema{ Name: "lwgoevents", GlueDatabaseName: "lwgoevents" })
 	cluster.DeclareUser("jwr_aml", amlGroup)
 	database.DeclareUser("jwr_aml")
 
@@ -191,10 +191,10 @@ func TestApplier_FailsOnExcludedSchema(t *testing.T) {
 	cluster := model.DeclareCluster("dev")
 	biGroup := cluster.DeclareGroup("bianalyst")
 	database := cluster.DeclareDatabase("jwr")
-	database.DeclareGroup("bianalyst")
+	biDatabaseGroup := database.DeclareGroup("bianalyst")
 	cluster.DeclareUser("jwr_bianalyst", biGroup)
 	database.DeclareUser("jwr_bianalyst")
-	biGroup.GrantSchema(&redshift.Schema{ Name: "public" })
+	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "public" })
 
 	err := applier.Apply(model)
 	assert.Error(err)

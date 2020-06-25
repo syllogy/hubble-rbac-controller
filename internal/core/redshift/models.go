@@ -7,6 +7,8 @@ import (
 
 type DatabaseGroup struct {
 	Name string
+	GrantedSchemas []*Schema
+	GrantedExternalSchemas []*ExternalSchema
 }
 
 type Schema struct {
@@ -29,8 +31,6 @@ type User struct {
 
 type Group struct {
 	Name     string
-	GrantedSchemas []*Schema
-	GrantedExternalSchemas []*ExternalSchema
 }
 
 type Cluster struct {
@@ -208,14 +208,14 @@ func (d *Database) Identifier() string {
 	return fmt.Sprintf("%s/%s", d.ClusterIdentifier, d.Name)
 }
 
-func (g *Group) GrantSchema(schema *Schema) {
+func (g *DatabaseGroup) GrantSchema(schema *Schema) {
 	existing := g.LookupGrantedSchema(schema.Name)
 	if existing == nil {
 		g.GrantedSchemas = append(g.GrantedSchemas, schema)
 	}
 }
 
-func (g *Group) GrantExternalSchema(schema *ExternalSchema) {
+func (g *DatabaseGroup) GrantExternalSchema(schema *ExternalSchema) {
 	existing := g.LookupGrantedExternalSchema(schema.Name)
 	if existing == nil {
 		g.GrantedExternalSchemas = append(g.GrantedExternalSchemas, schema)
@@ -223,7 +223,7 @@ func (g *Group) GrantExternalSchema(schema *ExternalSchema) {
 }
 
 
-func (g *Group) Granted() []string {
+func (g *DatabaseGroup) Granted() []string {
 	schemas := make([]string, 0, len(g.GrantedSchemas) + len(g.GrantedExternalSchemas))
 	for _, schema := range g.GrantedSchemas {
 		schemas = append(schemas, strings.ToLower(schema.Name))
@@ -234,7 +234,7 @@ func (g *Group) Granted() []string {
 	return schemas
 }
 
-func (g *Group) LookupGrantedSchema(name string) *Schema {
+func (g *DatabaseGroup) LookupGrantedSchema(name string) *Schema {
 	for _, schema := range g.GrantedSchemas {
 		if schema.Name == strings.ToLower(name) {
 			return schema
@@ -243,7 +243,7 @@ func (g *Group) LookupGrantedSchema(name string) *Schema {
 	return nil
 }
 
-func (g *Group) LookupGrantedExternalSchema(name string) *ExternalSchema {
+func (g *DatabaseGroup) LookupGrantedExternalSchema(name string) *ExternalSchema {
 	for _, schema := range g.GrantedExternalSchemas {
 		if schema.Name  == strings.ToLower(name) {
 			return schema

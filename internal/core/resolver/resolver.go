@@ -53,9 +53,9 @@ func (r *Resolver) Resolve(grant hubble.Model) (redshift.Model, iam.Model, googl
 
 				//Set needed grants on the user group
 				group := cluster.DeclareGroup(role.Name)
-				database.DeclareGroup(role.Name)
+				databaseGroup := database.DeclareGroup(role.Name)
 				for _,schema := range role.Acl {
-					group.GrantSchema(&redshift.Schema{ Name: string(schema) }) //TODO: is it ok to assume that there is a schema with name = dataset?
+					databaseGroup.GrantSchema(&redshift.Schema{ Name: string(schema) }) //TODO: is it ok to assume that there is a schema with name = dataset?
 				}
 
 				//Declare a redshift user for the user/role and add it to the group
@@ -67,7 +67,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (redshift.Model, iam.Model, googl
 						Name:             glueDb.ShortName,
 						GlueDatabaseName: glueDb.Name,
 					}
-					group.GrantExternalSchema(&schema)
+					databaseGroup.GrantExternalSchema(&schema)
 				}
 			}
 
@@ -80,7 +80,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (redshift.Model, iam.Model, googl
 				database := cluster.DeclareDatabaseWithOwner(user.Username, userAndRoleUsername)
 
 				group := cluster.DeclareGroup(role.Name)
-				database.DeclareGroup(role.Name)
+				databaseGroup := database.DeclareGroup(role.Name)
 
 				//Declare a redshift user for the user/role and add it to the group
 				cluster.DeclareUser(userAndRoleUsername, group)
@@ -91,7 +91,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (redshift.Model, iam.Model, googl
 						Name:             glueDb.ShortName,
 						GlueDatabaseName: glueDb.Name,
 					}
-					group.GrantExternalSchema(&schema)
+					databaseGroup.GrantExternalSchema(&schema)
 				}
 			}
 

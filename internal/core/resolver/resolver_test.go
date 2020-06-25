@@ -46,7 +46,7 @@ func generateTestData() TestData {
 
 	dbtDeveloperRole := hubble.Role{
 		Name:"dbt_developer",
-		GrantedDatabases:[]*hubble.Database{},
+		GrantedDatabases:[]*hubble.Database{&unstable},
 		GrantedDevDatabases:[]*hubble.DevDatabase{&dev},
 		GrantedGlueDatabases:[]*hubble.GlueDatabase{},
 		Acl:[]hubble.DataSet{"bi", "core"},
@@ -94,6 +94,7 @@ func Test_DbtDeveloper(t *testing.T) {
 
 	resolver := Resolver{}
 	redshiftModel, iamModel, googleModel, _ := resolver.Resolve(model)
+	fmt.Println(redshiftModel)
 
 	dbUsername := fmt.Sprintf("%s_%s", data.dbtDeveloper.Username, data.dbtDeveloperRole.Name)
 
@@ -150,7 +151,7 @@ func Test_BiAnalyst(t *testing.T) {
 	database := cluster.LookupDatabase(data.unstable.Name)
 	assert.NotNil(database, "database is registered")
 
-	group := cluster.LookupGroup(data.biAnalystRole.Name)
+	group := database.LookupGroup(data.biAnalystRole.Name)
 	assert.NotNil(group, "a user group with the name of the role has been registered")
 	assert.Contains(group.Granted(),"bi", "group has been granted access to the expected schemas")
 
