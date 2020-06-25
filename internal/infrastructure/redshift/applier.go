@@ -145,11 +145,11 @@ func (applier *Applier) createDatabase(database *redshiftCore.Database) error {
 
 	client, err := applier.clientGroup.MasterDatabase(database.ClusterIdentifier)
 
-	defer client.Close()
-
 	if err != nil {
 		return err
 	}
+
+	defer client.Close()
 
 	if database.Owner != nil {
 		if applier.isUserExcluded(*database.Owner) {
@@ -183,11 +183,11 @@ func (applier *Applier) createDatabase(database *redshiftCore.Database) error {
 
 	client, err = applier.clientGroup.ForDatabase(database)
 
-	defer client.Close()
-
 	if err != nil {
 		return err
 	}
+
+	defer client.Close()
 
 	//for some reason the owner of the database is not owner of the public schema
 	if database.Owner != nil {
@@ -204,11 +204,11 @@ func (applier *Applier) applyGrants(database *redshiftCore.Database, managedGrou
 
 	client, err := applier.clientGroup.ForDatabase(database)
 
-	defer client.Close()
-
 	if err != nil {
 		return fmt.Errorf("no client for database %s: %w", database.Identifier(), err)
 	}
+
+	defer client.Close()
 
 	existingGrantedSchemas, err := client.Grants(managedGroup.Name)
 
@@ -342,11 +342,11 @@ func (applier *Applier) applyCluster(cluster *redshiftCore.Cluster) error {
 
 	client, err := applier.clientGroup.MasterDatabase(cluster.Identifier)
 
-	defer client.Close()
-
 	if err != nil {
 		return fmt.Errorf("no client for cluster %s: %w", cluster.Identifier, err)
 	}
+
+	defer client.Close()
 
 	groups, err := client.Groups()
 	if err != nil {
