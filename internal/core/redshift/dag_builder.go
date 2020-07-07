@@ -1,7 +1,9 @@
 package redshift
 
+import "fmt"
 
-func (d *DagBuilder) UpdateModel(current Model, desired Model) {
+func (d *DagBuilder) UpdateModel(current Model, desired Model) *Dag {
+
 	for _, currentCluster := range current.Clusters {
 		desiredCluster := desired.LookupCluster(currentCluster.Identifier)
 
@@ -21,6 +23,8 @@ func (d *DagBuilder) UpdateModel(current Model, desired Model) {
 			d.UpdateCluster(currentCluster, desiredCluster)
 		}
 	}
+
+	return &Dag{tasks: d.tasks}
 }
 
 func (d *DagBuilder) AddCluster(cluster *Cluster) {
@@ -128,6 +132,10 @@ func (d *DagBuilder) DropDatabase(database *Database) {
 
 func (d *DagBuilder) UpdateDatabase(currentDatabase *Database, desiredDatabase *Database) {
 
+	if currentDatabase.Owner != desiredDatabase.Owner {
+		panic(fmt.Errorf("Owners are different!!!"))
+	}
+
 	for _, currentGroup := range currentDatabase.Groups {
 
 		desiredGroup := desiredDatabase.LookupGroup(currentGroup.Name)
@@ -154,10 +162,10 @@ func (d *DagBuilder) UpdateDatabase(currentDatabase *Database, desiredDatabase *
 func (d *DagBuilder) CreateUser(user *User) {
 
 	createUserTask := d.createUserTask(user)
-	addToGroupTask := d.addToGroupTask(user)
+	addToGroupTask := d.addToGroupTask(user, user.Role())
 	addToGroupTask.dependsOn(createUserTask)
 
-	createGroupTask := d.lookupCreateGroupTask(user.MemberOf.Name)
+	createGroupTask := d.lookupCreateGroupTask(user.Role().Name)
 	if createGroupTask != nil {
 		addToGroupTask.dependsOn(createGroupTask)
 	}
@@ -165,25 +173,33 @@ func (d *DagBuilder) CreateUser(user *User) {
 
 func (d *DagBuilder) DropUser(user *User) {
 
-	removeFromGroupTask := d.removeFromGroupTask(user)
 	dropUserTask := d.dropUserTask(user)
-	dropUserTask.dependsOn(removeFromGroupTask)
+
+	for _, group := range user.MemberOf {
+		removeFromGroupTask := d.removeFromGroupTask(user, group)
+		dropUserTask.dependsOn(removeFromGroupTask)
+	}
+
 }
 
 func (d *DagBuilder) UpdateUser(current *User, desired *User) {
 
-	if current.MemberOf.Name != desired.MemberOf.Name {
-		removeFromGroupTask := d.removeFromGroupTask(current)
-		addToGroupTask := d.addToGroupTask(desired)
-		addToGroupTask.dependsOn(removeFromGroupTask)
+	for _, group := range current.MemberOf {
+		if group.Name != desired.Role().Name {
+			removeFromGroupTask := d.removeFromGroupTask(current, group)
+			dropGroupTask := d.lookupDropGroupTask(group.Name)
 
-		dropGroupTask := d.lookupDropGroupTask(current.MemberOf.Name)
+			if dropGroupTask != nil {
+				dropGroupTask.dependsOn(removeFromGroupTask)
+			}
 
-		if dropGroupTask != nil {
-			dropGroupTask.dependsOn(removeFromGroupTask)
 		}
+	}
 
-		createGroupTask := d.lookupCreateGroupTask(desired.MemberOf.Name)
+	if !current.IsMemberOf(desired.Role().Name) {
+		addToGroupTask := d.addToGroupTask(desired, desired.Role())
+
+		createGroupTask := d.lookupCreateGroupTask(desired.Role().Name)
 
 		if createGroupTask != nil {
 			addToGroupTask.dependsOn(createGroupTask)

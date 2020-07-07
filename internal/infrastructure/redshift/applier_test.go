@@ -30,11 +30,7 @@ func init() {
 	}
 }
 
-func failOnError(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
+
 
 func TestApplier_ManageResources(t *testing.T) {
 

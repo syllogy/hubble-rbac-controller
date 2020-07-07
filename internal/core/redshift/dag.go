@@ -9,7 +9,16 @@ type ManageAccessModel struct {
 	groupName string
 }
 
+type ManageMembershipModel struct {
+	username string
+	groupName string
+}
+
 type DagBuilder struct {
+	tasks []*Task
+}
+
+type Dag struct {
 	tasks []*Task
 }
 
@@ -113,24 +122,24 @@ func (d *DagBuilder) revokeAccessTask(model *ManageAccessModel) *Task {
 	return d.createTask(fmt.Sprintf("%s->%s", model.groupName, model.schemaName), RevokeAccess, model)
 }
 
-func (d *DagBuilder) addToGroupTask(model *User) *Task {
-	existing := d.lookupAddToGroupTask(model.Name, model.MemberOf.Name)
+func (d *DagBuilder) addToGroupTask(model *User, group *Group) *Task {
+	existing := d.lookupAddToGroupTask(model.Name, group.Name)
 
 	if existing != nil {
 		return existing
 	}
 
-	return d.createTask(fmt.Sprintf("%s->%s", model.Name, model.MemberOf.Name), AddToGroup, model)
+	return d.createTask(fmt.Sprintf("%s->%s", model.Name, group.Name), AddToGroup, &ManageMembershipModel{username:model.Name, groupName:model.Role().Name})
 }
 
-func (d *DagBuilder) removeFromGroupTask(model *User) *Task {
-	existing := d.lookupRemoveFromGroupTask(model.Name, model.MemberOf.Name)
+func (d *DagBuilder) removeFromGroupTask(model *User, group *Group) *Task {
+	existing := d.lookupRemoveFromGroupTask(model.Name, group.Name)
 
 	if existing != nil {
 		return existing
 	}
 
-	return d.createTask(fmt.Sprintf("%s->%s", model.Name, model.MemberOf.Name), RemoveFromGroup, model)
+	return d.createTask(fmt.Sprintf("%s->%s", model.Name, group.Name), RemoveFromGroup, &ManageMembershipModel{username:model.Name, groupName:model.Role().Name})
 }
 
 func (d *DagBuilder) lookupCreateUserTask(username string) *Task {
@@ -218,8 +227,8 @@ func (d *DagBuilder) lookupRevokeAccessTask(schemaName string, groupName string)
 
 func (d *DagBuilder) lookupAddToGroupTask(username string, groupName string) *Task {
 	for _, task := range d.tasks {
-		if task.taskType == AddToGroup && task.model.(*User).Name == username &&
-			task.model.(*User).MemberOf.Name  == groupName {
+		if task.taskType == AddToGroup && task.model.(*ManageMembershipModel).username == username &&
+			task.model.(*ManageMembershipModel).groupName  == groupName {
 			return task
 		}
 	}
@@ -229,7 +238,7 @@ func (d *DagBuilder) lookupAddToGroupTask(username string, groupName string) *Ta
 func (d *DagBuilder) lookupAddToGroupTasks(groupName string) []*Task {
 	var result []*Task
 	for _, task := range d.tasks {
-		if task.taskType == AddToGroup && task.model.(*User).MemberOf.Name  == groupName {
+		if task.taskType == AddToGroup && task.model.(*ManageMembershipModel).groupName == groupName {
 			result = append(result, task)
 		}
 	}
@@ -239,7 +248,7 @@ func (d *DagBuilder) lookupAddToGroupTasks(groupName string) []*Task {
 func (d *DagBuilder) lookupRemoveFromGroupTasks(groupName string) []*Task {
 	var result []*Task
 	for _, task := range d.tasks {
-		if task.taskType == RemoveFromGroup && task.model.(*User).MemberOf.Name  == groupName {
+		if task.taskType == RemoveFromGroup && task.model.(*ManageMembershipModel).groupName == groupName {
 			result = append(result, task)
 		}
 	}
@@ -248,15 +257,15 @@ func (d *DagBuilder) lookupRemoveFromGroupTasks(groupName string) []*Task {
 
 func (d *DagBuilder) lookupRemoveFromGroupTask(username string, groupName string) *Task {
 	for _, task := range d.tasks {
-		if task.taskType == RemoveFromGroup && task.model.(*User).Name == username &&
-			task.model.(*User).MemberOf.Name  == groupName {
+		if task.taskType == RemoveFromGroup && task.model.(*ManageMembershipModel).username == username &&
+			task.model.(*ManageMembershipModel).groupName == groupName {
 			return task
 		}
 	}
 	return nil
 }
 
-func (d *DagBuilder) String() string {
+func (d *Dag) String() string {
 	var result string
 
 	for _, t := range d.tasks {

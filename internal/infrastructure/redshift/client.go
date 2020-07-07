@@ -93,6 +93,36 @@ func (c *Client) stringList(sql string) ([]string, error) {
 	return result, nil
 }
 
+type Row struct {
+	Cells []string
+}
+
+func (c *Client) stringRows(sql string) ([]Row, error) {
+	rows, err := c.db.Query(sql)
+
+	if rows != nil {
+		defer rows.Close()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result []Row
+	for rows.Next() {
+		var key string
+		var value string
+		err = rows.Scan(&key, &value)
+
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, Row{Cells:[]string{key, value}})
+	}
+
+	return result, nil
+}
+
 func (c *Client) contains(list []string, item string) bool {
 	for _, x := range list {
 		if x == item {
@@ -260,6 +290,23 @@ usename='%s'
 `
 
 	return c.stringList(fmt.Sprintf(sql, username))
+}
+
+func (c *Client) UsersAndGroups() ([]Row, error) {
+	sql := `
+select pg_user.usename, pg_group.groname from pg_user, pg_group  where
+pg_user.usesysid = ANY(pg_group.grolist)
+`
+	return c.stringRows(sql)
+}
+
+func (c *Client) Owners() ([]Row, error) {
+	sql := `
+SELECT d.datname as "Name",
+pg_catalog.pg_get_userbyid(d.datdba) as "Owner"
+FROM pg_catalog.pg_database d
+`
+	return c.stringRows(sql)
 }
 
 func generateRedshiftPassword() string {

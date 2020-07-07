@@ -26,7 +26,7 @@ type DatabaseUser struct {
 
 type User struct {
 	Name     string
-	MemberOf *Group
+	MemberOf []*Group
 }
 
 type Group struct {
@@ -71,6 +71,13 @@ func (c *Cluster) Validate() error {
 			}
 		}
 	}
+
+	for _, user := range c.Users {
+		if user.Role() == nil {
+			return fmt.Errorf("role of user with name %s cannot be determined. User must be part of 1 and only 1 group", user.Name)
+		}
+	}
+
 	return nil
 }
 
@@ -109,7 +116,7 @@ func (c *Cluster) DeclareUser(name string, memberOf *Group) *User {
 		return existing
 	}
 
-	newUser := &User{ Name: strings.ToLower(name), MemberOf: memberOf }
+	newUser := &User{ Name: strings.ToLower(name), MemberOf: []*Group{memberOf} }
 	c.Users = append(c.Users, newUser)
 	return newUser
 }
@@ -250,4 +257,21 @@ func (g *DatabaseGroup) LookupGrantedExternalSchema(name string) *ExternalSchema
 		}
 	}
 	return nil
+}
+
+func (u *User) Role() *Group {
+
+	if len(u.MemberOf) != 1 {
+		return nil
+	}
+	return u.MemberOf[0]
+}
+
+func (u *User) IsMemberOf(groupName string) bool {
+	for _, group := range u.MemberOf {
+		if group.Name == groupName {
+			return true
+		}
+	}
+	return false
 }

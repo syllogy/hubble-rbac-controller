@@ -460,7 +460,7 @@ func (applier *Applier) applyCluster(cluster *redshiftCore.Cluster) error {
 
 		//If the user is already part of some other group we should remove the membership
 		for _,groupName := range alreadyPartOf {
-			if managedUser.MemberOf.Name != groupName {
+			if managedUser.Role().Name != groupName {
 				err = client.RemoveUserFromGroup(managedUser.Name, groupName)
 				applier.eventListener.Handle(Event{
 					EventType: EnsureUserIsNotInGroup,
@@ -474,15 +474,15 @@ func (applier *Applier) applyCluster(cluster *redshiftCore.Cluster) error {
 			}
 		}
 
-		err = client.AddUserToGroup(managedUser.Name, managedUser.MemberOf.Name)
+		err = client.AddUserToGroup(managedUser.Name, managedUser.Role().Name)
 		applier.eventListener.Handle(Event{
 			EventType: EnsureUserIsInGroup,
-			Name:      fmt.Sprintf("%s->%s", managedUser.Name, managedUser.MemberOf.Name),
+			Name:      fmt.Sprintf("%s->%s", managedUser.Name, managedUser.Role().Name),
 			Cluster:   cluster.Identifier,
 			Database:  "",
 		})
 		if err != nil {
-			return fmt.Errorf("unable to add user %s to group %s in %s: %w", managedUser.Name, managedUser.MemberOf.Name, cluster.Identifier, err)
+			return fmt.Errorf("unable to add user %s to group %s in %s: %w", managedUser.Name, managedUser.Role().Name, cluster.Identifier, err)
 		}
 	}
 
