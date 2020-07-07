@@ -30,30 +30,31 @@ func init() {
 	}
 }
 
-
+func failOnError(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
 
 func TestApplier_ManageResources(t *testing.T) {
 
 	assert := assert.New(t)
 
 	logger := infrastructure.NewLogger(t)
-	eventRecorder := EventRecorder{}
 	excludedUsers := []string{"lunarway"}
-	excludedSchemas := []string{"public"}
 	excludedDatabases := []string{"template0", "postgres"}
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770", logger)
+	applier := NewDagBasedApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger)
 
 	//Create empty model
 	model := redshift.Model{}
+	cluster := model.DeclareCluster("dev")
 
 	err := applier.Apply(model)
 	assert.NoError(err)
-	assert.Equal(0, eventRecorder.CountAll())
 
 	//Create a database with a BI user
-	cluster := model.DeclareCluster("dev")
 	biGroup := cluster.DeclareGroup("bianalyst")
 	cluster.DeclareUser("jwr_bianalyst", biGroup)
 	database := cluster.DeclareDatabase("jwr")
@@ -74,11 +75,6 @@ func TestApplier_ManageResources(t *testing.T) {
 		Grants:           map[string][]string{"bianalyst": {"public"}},
 	}, "")
 
-	assert.Equal(1, eventRecorder.Count(EnsureGroupExists))
-	assert.Equal(0, eventRecorder.Count(EnsureSchemaExists))
-	assert.Equal(1, eventRecorder.Count(EnsureUserExists))
-	assert.Equal(1, eventRecorder.Count(EnsureUserIsInGroup))
-
 	//Grant access to "bi"
 	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "bi" })
 
@@ -92,9 +88,6 @@ func TestApplier_ManageResources(t *testing.T) {
 		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public", "bi"}},
 	}, "")
-
-	assert.Equal(1, eventRecorder.Count(EnsureSchemaExists))
-	assert.Equal(1, eventRecorder.Count(EnsureAccessIsGrantedToSchema))
 
 	//Grant access to "test"
 	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "test" })
@@ -149,14 +142,11 @@ func TestApplier_FailsOnExcludedUser(t *testing.T) {
 	assert := assert.New(t)
 
 	logger := infrastructure.NewLogger(t)
-	eventRecorder := EventRecorder{}
 	excludedUsers := []string{"lunarway"}
-	excludedSchemas := []string{"public"}
 	excludedDatabases := []string{"template0", "postgres"}
 
-
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770", logger)
+	applier := NewDagBasedApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger)
 
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")
@@ -165,32 +155,6 @@ func TestApplier_FailsOnExcludedUser(t *testing.T) {
 	database.DeclareGroup("bianalyst")
 	cluster.DeclareUser("lunarway", biGroup)
 	database.DeclareUser("lunarway")
-
-	err := applier.Apply(model)
-	assert.Error(err)
-}
-
-func TestApplier_FailsOnExcludedSchema(t *testing.T) {
-
-	assert := assert.New(t)
-
-	logger := infrastructure.NewLogger(t)
-	eventRecorder := EventRecorder{}
-	excludedUsers := []string{"lunarway"}
-	excludedSchemas := []string{"public"}
-	excludedDatabases := []string{"template0", "postgres"}
-
-	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770", logger)
-
-	model := redshift.Model{}
-	cluster := model.DeclareCluster("dev")
-	biGroup := cluster.DeclareGroup("bianalyst")
-	database := cluster.DeclareDatabase("jwr")
-	biDatabaseGroup := database.DeclareGroup("bianalyst")
-	cluster.DeclareUser("jwr_bianalyst", biGroup)
-	database.DeclareUser("jwr_bianalyst")
-	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "public" })
 
 	err := applier.Apply(model)
 	assert.Error(err)

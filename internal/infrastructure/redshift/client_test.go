@@ -17,7 +17,7 @@ func TestClient_CreateUser(t *testing.T) {
 	assert := assert.New(t)
 
 	schema := "public"
-	groupName := "bianalyst"
+	groupName := "clienttest"
 	username := strings.ToLower(utils.GenerateRandomString(10))
 
 	client, _ := NewClient("lunarway","lunarway","localhost","lunarway", "disable", 5432, false)

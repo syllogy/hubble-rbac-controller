@@ -52,9 +52,9 @@ type Model struct {
 	Clusters []*Cluster
 }
 
-func (m *Model) Validate() error {
+func (m *Model) Validate(excluded *Exclusions) error {
 	for _,cluster := range m.Clusters {
-		err := cluster.Validate()
+		err := cluster.Validate(excluded)
 
 		if err != nil {
 			return err
@@ -63,18 +63,24 @@ func (m *Model) Validate() error {
 	return nil
 }
 
-func (c *Cluster) Validate() error {
+func (c *Cluster) Validate(excluded *Exclusions) error {
 	for _, database := range c.Databases {
 		for _, user := range database.Users {
 			if c.LookupUser(user.Name) == nil {
 				return fmt.Errorf("user with name %s from database %s has not been declared on the cluster", user.Name, database.Name)
 			}
 		}
+		if excluded.IsDatabaseExcluded(database.Name) {
+			return fmt.Errorf("database with name %s has been excluded and cannot be managed", database.Name)
+		}
 	}
 
 	for _, user := range c.Users {
 		if user.Role() == nil {
 			return fmt.Errorf("role of user with name %s cannot be determined. User must be part of 1 and only 1 group", user.Name)
+		}
+		if excluded.IsUserExcluded(user.Name) {
+			return fmt.Errorf("user with name %s has been excluded and cannot be managed", user.Name)
 		}
 	}
 

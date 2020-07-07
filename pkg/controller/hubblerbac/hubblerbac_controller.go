@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/logr"
+	redshiftCore "github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
@@ -35,7 +36,6 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 		"looker",
 		"rdsdb",
 	}
-	excludedSchemas := []string{}
 	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
 
 	redshiftCredentials := redshift.ClusterCredentials{
@@ -49,7 +49,7 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 	}
 
 	clientGroup := redshift.NewClientGroupY(&redshiftCredentials)
-	redshiftApplier := redshift.NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, service.NewRedshiftLogger(log), conf.AwsAccountId, log)
+	redshiftApplier := redshift.NewDagBasedApplier(clientGroup,  redshiftCore.NewExclusions(excludedDatabases, excludedUsers), conf.AwsAccountId, log)
 
 	session := iam.AwsSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)

@@ -1,8 +1,8 @@
 package redshift
 
 import (
-	"fmt"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 )
@@ -39,16 +39,12 @@ func buildDesired() Model {
 
 func Test_Dag1(t *testing.T) {
 
-	//assert := assert.New(t)
-
-	//logger := zap.Logger()
+	assert := assert.New(t)
 
 	current := buildCurrent()
 	desired := buildDesired()
 	dagBuilder := NewDagBuilder()
-	dagBuilder.UpdateModel(current, desired)
+	dag := dagBuilder.UpdateModel(&current, &desired)
 
-	//b, _ := json.MarshalIndent(dagBuilder, "", "   ")
-	//log.Info(fmt.Sprintf("%s", b))
-	fmt.Println(dagBuilder.String())
+	assert.Equal(8, dag.NumTasks())
 }

@@ -21,6 +21,17 @@ const (
 	RemoveFromGroup
 )
 
+type TaskState int
+
+const (
+	Running TaskState = iota
+	Pending
+	Success
+	Failed
+	Skipped
+)
+
+
 func (t TaskType) String() string {
 	return [...]string{"CreateUser", "DropUser", "CreateGroup", "DropGroup", "CreateSchema",
 		"CreateExternalSchema", "CreateDatabase", "GrantAccess", "RevokeAccess", "AddToGroup", "RemoveFromGroup"}[t]
@@ -32,10 +43,55 @@ type Task struct {
 	model interface{}
 	upStream []*Task
 	downStream []*Task
+	state TaskState
 }
 
 func NewTask(identifier string, taskType TaskType, model interface{}) *Task {
-	return &Task{identifier: identifier, taskType: taskType, model: model}
+	return &Task{identifier: identifier, taskType: taskType, model: model, state: Pending}
+}
+
+func (t *Task) Skip() {
+	t.state = Skipped
+}
+
+func (t *Task) Success() {
+	t.state = Success
+}
+
+func (t *Task) Failed() {
+	t.state = Failed
+}
+
+func (t *Task) Start() {
+	t.state = Running
+}
+
+func (t *Task) isDone() bool {
+	return t.state == Success || t.state == Failed || t.state == Skipped
+}
+
+
+func (t *Task) IsWaiting() bool {
+	return t.allUpstreamDone() && t.state == Pending
+}
+
+func (t *Task) CannotRun() bool {
+
+	for _,parent := range t.upStream {
+		if parent.state == Failed || parent.state == Skipped {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *Task) allUpstreamDone() bool {
+	for _,parent := range t.upStream {
+		if !parent.isDone() {
+			return false
+		}
+	}
+	return true
 }
 
 func (t *Task) isUpstream(other *Task) bool {

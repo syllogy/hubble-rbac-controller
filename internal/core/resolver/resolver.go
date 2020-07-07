@@ -54,6 +54,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (redshift.Model, iam.Model, googl
 				//Set needed grants on the user group
 				group := cluster.DeclareGroup(role.Name)
 				databaseGroup := database.DeclareGroup(role.Name)
+				databaseGroup.GrantSchema(&redshift.Schema{ Name: "public" })
 				for _,schema := range role.Acl {
 					databaseGroup.GrantSchema(&redshift.Schema{ Name: string(schema) }) //TODO: is it ok to assume that there is a schema with name = dataset?
 				}
@@ -81,6 +82,7 @@ func (r *Resolver) Resolve(grant hubble.Model) (redshift.Model, iam.Model, googl
 
 				group := cluster.DeclareGroup(role.Name)
 				databaseGroup := database.DeclareGroup(role.Name)
+				databaseGroup.GrantSchema(&redshift.Schema{ Name: "public" })
 
 				//Declare a redshift user for the user/role and add it to the group
 				cluster.DeclareUser(userAndRoleUsername, group)

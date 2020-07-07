@@ -403,6 +403,6 @@ func (c *Client) Revoke(groupName string, schemaName string) error {
 		return err
 	}
 
-	_, err = c.db.Exec(fmt.Sprintf("REVOKE ALL ON SCHEMA %s FROM GROUP %s", schemaName, groupName))
+		_, err = c.db.Exec(fmt.Sprintf("REVOKE ALL ON SCHEMA %s FROM GROUP %s", schemaName, groupName))
 	return err
 }

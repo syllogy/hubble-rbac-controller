@@ -10,14 +10,6 @@ import (
 )
 
 
-type RedshiftEventRecorder struct {
-	logger logr.Logger
-}
-
-func (e *RedshiftEventRecorder) Handle(event redshift.Event) {
-	e.logger.Info("Event occurred", "eventType", event.EventType.ToString(), "name", event.Name, "cluster", event.Cluster, "database", event.Database)
-}
-
 type IamEventRecorder struct {
 	logger logr.Logger
 }
@@ -30,14 +22,10 @@ func NewIamLogger(logger logr.Logger) *IamEventRecorder {
 	return &IamEventRecorder{logger:logger}
 }
 
-func NewRedshiftLogger(logger logr.Logger) *RedshiftEventRecorder {
-	return &RedshiftEventRecorder{logger:logger}
-}
-
 type Applier struct {
 	resolver *resolver.Resolver
 	googleApplier google.Applier
-	redshiftApplier *redshift.Applier
+	redshiftApplier redshift.Applier
 	iamApplier *iam.Applier
 	logger logr.Logger
 }
@@ -45,7 +33,7 @@ type Applier struct {
 func NewApplier(
 	iamApplier *iam.Applier,
 	googleApplier google.Applier,
-	redshiftApplier *redshift.Applier,
+	redshiftApplier redshift.Applier,
 	logger logr.Logger) *Applier {
 
 	return &Applier{
@@ -94,6 +82,8 @@ func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 			return err
 		}
 	}
+
+	applier.logger.Info("All changes have been applied")
 
 	return nil
 }

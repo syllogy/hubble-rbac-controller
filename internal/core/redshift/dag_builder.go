@@ -1,8 +1,18 @@
 package redshift
 
-import "fmt"
+import (
+	"fmt"
+)
 
-func (d *DagBuilder) UpdateModel(current Model, desired Model) *Dag {
+type DagBuilder struct {
+	tasks []*Task
+}
+
+func NewDagBuilder() *DagBuilder {
+	return &DagBuilder{}
+}
+
+func (d *DagBuilder) UpdateModel(current *Model, desired *Model) *Dag {
 
 	for _, currentCluster := range current.Clusters {
 		desiredCluster := desired.LookupCluster(currentCluster.Identifier)
@@ -30,11 +40,11 @@ func (d *DagBuilder) UpdateModel(current Model, desired Model) *Dag {
 func (d *DagBuilder) AddCluster(cluster *Cluster) {
 
 	for _, desiredGroup := range cluster.Groups {
-		d.CreateGroup(desiredGroup)
+		d.CreateGroup(cluster.Identifier, desiredGroup)
 	}
 
 	for _, desiredUser := range cluster.Users {
-		d.CreateUser(desiredUser)
+		d.CreateUser(cluster.Identifier, desiredUser)
 	}
 
 	for _, desiredDatabase := range cluster.Databases {
@@ -45,7 +55,7 @@ func (d *DagBuilder) AddCluster(cluster *Cluster) {
 func (d *DagBuilder) DropCluster(cluster *Cluster) {
 
 	for _, currentUser := range cluster.Users {
-		d.DropUser(currentUser)
+		d.DropUser(cluster.Identifier, currentUser)
 	}
 
 	for _, currentDatabase := range cluster.Databases {
@@ -53,7 +63,7 @@ func (d *DagBuilder) DropCluster(cluster *Cluster) {
 	}
 
 	for _, currentGroup := range cluster.Groups {
-		d.DropGroup(currentGroup)
+		d.DropGroup(cluster.Identifier, currentGroup)
 	}
 }
 
@@ -63,9 +73,9 @@ func (d *DagBuilder) UpdateCluster(currentCluster *Cluster, desiredCluster *Clus
 		desiredUser := desiredCluster.LookupUser(currentUser.Name)
 
 		if desiredUser == nil {
-			d.DropUser(currentUser)
+			d.DropUser(currentCluster.Identifier, currentUser)
 		} else {
-			d.UpdateUser(currentUser, desiredUser)
+			d.UpdateUser(currentCluster.Identifier, currentUser, desiredUser)
 		}
 	}
 
@@ -73,7 +83,7 @@ func (d *DagBuilder) UpdateCluster(currentCluster *Cluster, desiredCluster *Clus
 		desiredGroup := desiredCluster.LookupGroup(currentGroup.Name)
 
 		if desiredGroup == nil {
-			d.DropGroup(currentGroup)
+			d.DropGroup(currentCluster.Identifier, currentGroup)
 		}
 	}
 
@@ -91,7 +101,7 @@ func (d *DagBuilder) UpdateCluster(currentCluster *Cluster, desiredCluster *Clus
 		currentGroup := currentCluster.LookupGroup(desiredGroup.Name)
 
 		if currentGroup == nil {
-			d.CreateGroup(desiredGroup)
+			d.CreateGroup(currentCluster.Identifier, desiredGroup)
 		}
 	}
 
@@ -99,9 +109,9 @@ func (d *DagBuilder) UpdateCluster(currentCluster *Cluster, desiredCluster *Clus
 		currentUser := currentCluster.LookupUser(desiredUser.Name)
 
 		if currentUser == nil {
-			d.CreateUser(desiredUser)
+			d.CreateUser(currentCluster.Identifier, desiredUser)
 		} else {
-			d.UpdateUser(currentUser, desiredUser)
+			d.UpdateUser(currentCluster.Identifier, currentUser, desiredUser)
 		}
 	}
 
@@ -118,21 +128,33 @@ func (d *DagBuilder) UpdateCluster(currentCluster *Cluster, desiredCluster *Clus
 
 func (d *DagBuilder) AddDatabase(database *Database) {
 
+	d.createDatabaseTask(database.ClusterIdentifier, database)
+
 	for _, group := range database.Groups {
-		d.AddDatabaseGroup(group)
+		d.AddDatabaseGroup(database, group)
 	}
 }
 
 func (d *DagBuilder) DropDatabase(database *Database) {
 
 	for _, group := range database.Groups {
-		d.DropDatabaseGroup(group)
+		d.DropDatabaseGroup(database, group)
 	}
+}
+
+func stringsEqual(lhs *string, rhs *string) bool {
+	if lhs == nil && rhs == nil {
+		return true
+	}
+	if lhs != nil && rhs != nil {
+		return *lhs == *rhs
+	}
+	return false
 }
 
 func (d *DagBuilder) UpdateDatabase(currentDatabase *Database, desiredDatabase *Database) {
 
-	if currentDatabase.Owner != desiredDatabase.Owner {
+	if !stringsEqual(currentDatabase.Owner, desiredDatabase.Owner) {
 		panic(fmt.Errorf("Owners are different!!!"))
 	}
 
@@ -141,9 +163,9 @@ func (d *DagBuilder) UpdateDatabase(currentDatabase *Database, desiredDatabase *
 		desiredGroup := desiredDatabase.LookupGroup(currentGroup.Name)
 
 		if desiredGroup == nil {
-			d.DropDatabaseGroup(currentGroup)
+			d.DropDatabaseGroup(currentDatabase, currentGroup)
 		} else {
-			d.UpdateDatabaseGroup(currentGroup, desiredGroup)
+			d.UpdateDatabaseGroup(currentDatabase, currentGroup, desiredGroup)
 		}
 	}
 
@@ -152,54 +174,53 @@ func (d *DagBuilder) UpdateDatabase(currentDatabase *Database, desiredDatabase *
 		currentGroup := currentDatabase.LookupGroup(desiredGroup.Name)
 
 		if currentGroup == nil {
-			d.AddDatabaseGroup(desiredGroup)
+			d.AddDatabaseGroup(desiredDatabase, desiredGroup)
 		} else {
-			d.UpdateDatabaseGroup(currentGroup, desiredGroup)
+			d.UpdateDatabaseGroup(currentDatabase, currentGroup, desiredGroup)
 		}
 	}
 }
 
-func (d *DagBuilder) CreateUser(user *User) {
+func (d *DagBuilder) CreateUser(clusterIdentifier string, user *User) {
 
-	createUserTask := d.createUserTask(user)
-	addToGroupTask := d.addToGroupTask(user, user.Role())
+	createUserTask := d.createUserTask(clusterIdentifier, user)
+	addToGroupTask := d.addToGroupTask(clusterIdentifier,user, user.Role())
 	addToGroupTask.dependsOn(createUserTask)
 
-	createGroupTask := d.lookupCreateGroupTask(user.Role().Name)
+	createGroupTask := d.lookupCreateGroupTask(clusterIdentifier, user.Role().Name)
 	if createGroupTask != nil {
 		addToGroupTask.dependsOn(createGroupTask)
 	}
 }
 
-func (d *DagBuilder) DropUser(user *User) {
+func (d *DagBuilder) DropUser(clusterIdentifier string, user *User) {
 
-	dropUserTask := d.dropUserTask(user)
+	dropUserTask := d.dropUserTask(clusterIdentifier, user)
 
 	for _, group := range user.MemberOf {
-		removeFromGroupTask := d.removeFromGroupTask(user, group)
+		removeFromGroupTask := d.removeFromGroupTask(clusterIdentifier, user, group)
 		dropUserTask.dependsOn(removeFromGroupTask)
 	}
 
 }
 
-func (d *DagBuilder) UpdateUser(current *User, desired *User) {
+func (d *DagBuilder) UpdateUser(clusterIdentifier string, current *User, desired *User) {
 
 	for _, group := range current.MemberOf {
 		if group.Name != desired.Role().Name {
-			removeFromGroupTask := d.removeFromGroupTask(current, group)
-			dropGroupTask := d.lookupDropGroupTask(group.Name)
+			removeFromGroupTask := d.removeFromGroupTask(clusterIdentifier, current, group)
+			dropGroupTask := d.lookupDropGroupTask(clusterIdentifier, group.Name)
 
 			if dropGroupTask != nil {
 				dropGroupTask.dependsOn(removeFromGroupTask)
 			}
-
 		}
 	}
 
 	if !current.IsMemberOf(desired.Role().Name) {
-		addToGroupTask := d.addToGroupTask(desired, desired.Role())
+		addToGroupTask := d.addToGroupTask(clusterIdentifier, desired, desired.Role())
 
-		createGroupTask := d.lookupCreateGroupTask(desired.Role().Name)
+		createGroupTask := d.lookupCreateGroupTask(clusterIdentifier, desired.Role().Name)
 
 		if createGroupTask != nil {
 			addToGroupTask.dependsOn(createGroupTask)
@@ -207,39 +228,47 @@ func (d *DagBuilder) UpdateUser(current *User, desired *User) {
 	}
 }
 
-func (d *DagBuilder) CreateGroup(group *Group) {
+func (d *DagBuilder) CreateGroup(clusterIdentifier string, group *Group) {
 
-	createGroupTask := d.createGroupTask(group)
-	addToGroupTasks := d.lookupAddToGroupTasks(group.Name)
+	createGroupTask := d.createGroupTask(clusterIdentifier, group)
+	addToGroupTasks := d.lookupAddToGroupTasks(clusterIdentifier, group.Name)
 
 	for _, addToGroupTask := range addToGroupTasks {
 		addToGroupTask.dependsOn(createGroupTask)
 	}
 }
 
-func (d *DagBuilder) DropGroup(group *Group) {
+func (d *DagBuilder) DropGroup(clusterIdentifier string, group *Group) {
 
-	dropGroupTask := d.dropGroupTask(group)
-	removeFromGroupTasks := d.lookupRemoveFromGroupTasks(group.Name)
+	dropGroupTask := d.dropGroupTask(clusterIdentifier, group)
+	removeFromGroupTasks := d.lookupRemoveFromGroupTasks(clusterIdentifier, group.Name)
 
 	for _, removeFromGroupTask := range removeFromGroupTasks {
 		dropGroupTask.dependsOn(removeFromGroupTask)
 	}
 }
 
-func (d *DagBuilder) AddDatabaseGroup(group *DatabaseGroup) {
+func (d *DagBuilder) AddDatabaseGroup(database *Database, group *DatabaseGroup) {
+
+	createDatabaseTask := d.lookupCreateDatabaseTask(database.ClusterIdentifier, database.Name)
 
 	for _, schema := range group.GrantedSchemas {
 
-		grantAccessTask := d.grantAccessTask(&ManageAccessModel{
-			schemaName: schema.Name,
-			groupName:  group.Name,
-		})
+		grantAccessTask := d.grantAccessTask(database, schema.Name, group.Name)
 
-		createSchemaTask := d.createSchemaTask(schema)
+		if createDatabaseTask != nil {
+			grantAccessTask.dependsOn(createDatabaseTask)
+		}
+
+		createSchemaTask := d.createSchemaTask(database, schema)
+
+		if createDatabaseTask != nil {
+			createSchemaTask.dependsOn(createDatabaseTask)
+		}
+
 		grantAccessTask.dependsOn(createSchemaTask)
 
-		createGroupTask := d.lookupCreateGroupTask(group.Name)
+		createGroupTask := d.lookupCreateGroupTask(database.ClusterIdentifier, group.Name)
 		if createGroupTask != nil {
 			grantAccessTask.dependsOn(createGroupTask)
 		}
@@ -247,65 +276,66 @@ func (d *DagBuilder) AddDatabaseGroup(group *DatabaseGroup) {
 
 	for _, schema := range group.GrantedExternalSchemas {
 
-		grantAccessTask := d.grantAccessTask(&ManageAccessModel{
-			schemaName: schema.Name,
-			groupName:  group.Name,
-		})
+		grantAccessTask := d.grantAccessTask(database, schema.Name, group.Name)
 
-		createSchemaTask := d.createExternalSchemaTask(schema)
+		if createDatabaseTask != nil {
+			grantAccessTask.dependsOn(createDatabaseTask)
+		}
+
+		createSchemaTask := d.createExternalSchemaTask(database, schema)
+
+		if createDatabaseTask != nil {
+			createSchemaTask.dependsOn(createDatabaseTask)
+		}
+
 		grantAccessTask.dependsOn(createSchemaTask)
 
-		createGroupTask := d.lookupCreateGroupTask(group.Name)
+		createGroupTask := d.lookupCreateGroupTask(database.ClusterIdentifier, group.Name)
 		if createGroupTask != nil {
 			grantAccessTask.dependsOn(createGroupTask)
 		}
 	}
 }
 
-func (d *DagBuilder) DropDatabaseGroup(group *DatabaseGroup) {
+func (d *DagBuilder) DropDatabaseGroup(database *Database, group *DatabaseGroup) {
 
 	for _, schema := range group.GrantedSchemas {
 
-		revokeAccessTask := d.revokeAccessTask(&ManageAccessModel{
-			schemaName: schema.Name,
-			groupName:  group.Name,
-		})
+		if schema.Name != "xpublic" { //groups will always get access to the public schema in all database and we can't revoke it
+			revokeAccessTask := d.revokeAccessTask(database, schema.Name, group.Name)
 
-		dropGroupTask := d.lookupDropGroupTask(group.Name)
-		if dropGroupTask != nil {
-			dropGroupTask.dependsOn(revokeAccessTask)
+			dropGroupTask := d.lookupDropGroupTask(database.ClusterIdentifier, group.Name)
+			if dropGroupTask != nil {
+				dropGroupTask.dependsOn(revokeAccessTask)
+			}
 		}
 	}
 
 	for _, schema := range group.GrantedExternalSchemas {
 
-		revokeAccessTask := d.revokeAccessTask(&ManageAccessModel{
-			schemaName: schema.Name,
-			groupName:  group.Name,
-		})
+		revokeAccessTask := d.revokeAccessTask(database, schema.Name, group.Name)
 
-		dropGroupTask := d.lookupDropGroupTask(group.Name)
+		dropGroupTask := d.lookupDropGroupTask(database.ClusterIdentifier, group.Name)
 		if dropGroupTask != nil {
 			dropGroupTask.dependsOn(revokeAccessTask)
 		}
 	}
 }
 
-func (d *DagBuilder) UpdateDatabaseGroup(current *DatabaseGroup, desired *DatabaseGroup) {
+func (d *DagBuilder) UpdateDatabaseGroup(database *Database, current *DatabaseGroup, desired *DatabaseGroup) {
 
 	for _, schema := range current.GrantedSchemas {
 
 		grantDesired := desired.LookupGrantedSchema(schema.Name)
 
 		if grantDesired == nil {
-			revokeAccessTask := d.revokeAccessTask(&ManageAccessModel{
-				schemaName: schema.Name,
-				groupName:  current.Name,
-			})
+			if schema.Name != "xpublic" { //groups will always get access to the public schema in all database and we can't revoke it
+				revokeAccessTask := d.revokeAccessTask(database, schema.Name, current.Name)
 
-			dropGroupTask := d.lookupDropGroupTask(current.Name)
-			if dropGroupTask != nil {
-				dropGroupTask.dependsOn(revokeAccessTask)
+				dropGroupTask := d.lookupDropGroupTask(database.ClusterIdentifier, current.Name)
+				if dropGroupTask != nil {
+					dropGroupTask.dependsOn(revokeAccessTask)
+				}
 			}
 		}
 	}
@@ -315,12 +345,9 @@ func (d *DagBuilder) UpdateDatabaseGroup(current *DatabaseGroup, desired *Databa
 		grantDesired := desired.LookupGrantedExternalSchema(schema.Name)
 
 		if grantDesired == nil {
-			revokeAccessTask := d.revokeAccessTask(&ManageAccessModel{
-				schemaName: schema.Name,
-				groupName:  current.Name,
-			})
+			revokeAccessTask := d.revokeAccessTask(database, schema.Name, current.Name)
 
-			dropGroupTask := d.lookupDropGroupTask(current.Name)
+			dropGroupTask := d.lookupDropGroupTask(database.ClusterIdentifier, current.Name)
 			if dropGroupTask != nil {
 				dropGroupTask.dependsOn(revokeAccessTask)
 			}
@@ -332,15 +359,12 @@ func (d *DagBuilder) UpdateDatabaseGroup(current *DatabaseGroup, desired *Databa
 		grantCurrent := current.LookupGrantedSchema(schema.Name)
 
 		if grantCurrent == nil {
-			grantAccessTask := d.grantAccessTask(&ManageAccessModel{
-				schemaName: schema.Name,
-				groupName:  desired.Name,
-			})
+			grantAccessTask := d.grantAccessTask(database, schema.Name, desired.Name)
 
-			createSchemaTask := d.createSchemaTask(schema)
+			createSchemaTask := d.createSchemaTask(database, schema)
 			grantAccessTask.dependsOn(createSchemaTask)
 
-			createGroupTask := d.lookupCreateGroupTask(desired.Name)
+			createGroupTask := d.lookupCreateGroupTask(database.ClusterIdentifier, desired.Name)
 			if createGroupTask != nil {
 				grantAccessTask.dependsOn(createGroupTask)
 			}
@@ -353,15 +377,12 @@ func (d *DagBuilder) UpdateDatabaseGroup(current *DatabaseGroup, desired *Databa
 
 		if grantCurrent == nil {
 
-			grantAccessTask := d.grantAccessTask(&ManageAccessModel{
-				schemaName: schema.Name,
-				groupName:  desired.Name,
-			})
+			grantAccessTask := d.grantAccessTask(database, schema.Name, desired.Name)
 
-			createSchemaTask := d.createExternalSchemaTask(schema)
+			createSchemaTask := d.createExternalSchemaTask(database, schema)
 			grantAccessTask.dependsOn(createSchemaTask)
 
-			createGroupTask := d.lookupCreateGroupTask(desired.Name)
+			createGroupTask := d.lookupCreateGroupTask(database.ClusterIdentifier, desired.Name)
 			if createGroupTask != nil {
 				grantAccessTask.dependsOn(createGroupTask)
 			}
