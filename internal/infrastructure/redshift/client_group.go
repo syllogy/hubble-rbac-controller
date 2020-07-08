@@ -15,6 +15,8 @@ type ClusterCredentials struct {
 	ExternalSchemasSupported bool
 }
 
+type HostResolver func(string) string
+
 type ClientGroup interface {
 	ForDatabase(database *redshift.Database) (*Client, error)
 	MasterDatabase(clusterIdentifier string) (*Client, error)
@@ -23,30 +25,45 @@ type ClientGroup interface {
 
 type ClientGroupSharedCredentials struct {
 	credentials *ClusterCredentials
+	hostResolver HostResolver
 }
 
 func NewClientGroup(credentials *ClusterCredentials) ClientGroup {
-	return &ClientGroupSharedCredentials{credentials: credentials}
+	return &ClientGroupSharedCredentials{
+		credentials: credentials,
+		hostResolver: func(clusterIdentifier string) string {
+			return fmt.Sprintf(credentials.Host, clusterIdentifier)
+		},
+	}
+}
+
+func NewClientGroup2(credentials *ClusterCredentials) ClientGroup {
+	return &ClientGroupSharedCredentials{
+		credentials: credentials,
+		hostResolver: func(clusterIdentifier string) string {
+			return credentials.Host
+		},
+	}
 }
 
 func (cg ClientGroupSharedCredentials) ForDatabase(database *redshift.Database) (*Client, error) {
 
 	credentials := cg.credentials
 
-	return NewClient(credentials.Username, credentials.Password, fmt.Sprintf(credentials.Host, database.ClusterIdentifier), database.Name, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
+	return NewClient(credentials.Username, credentials.Password, cg.hostResolver(database.ClusterIdentifier), database.Name, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
 
 func (cg ClientGroupSharedCredentials) MasterDatabase(clusterIdentifier string) (*Client, error) {
 
 	credentials := cg.credentials
 
-	return NewClient(credentials.Username, credentials.Password, fmt.Sprintf(credentials.Host, clusterIdentifier), credentials.MasterDatabase, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
+	return NewClient(credentials.Username, credentials.Password, cg.hostResolver(clusterIdentifier), credentials.MasterDatabase, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
 
 func (cg ClientGroupSharedCredentials) Database(clusterIdentifier string, databaseName string) (*Client, error) {
 
 	credentials := cg.credentials
 
-	return NewClient(credentials.Username, credentials.Password, fmt.Sprintf(credentials.Host, clusterIdentifier), databaseName, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
+	return NewClient(credentials.Username, credentials.Password, cg.hostResolver(clusterIdentifier), databaseName, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
 

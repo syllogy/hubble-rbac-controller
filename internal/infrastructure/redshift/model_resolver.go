@@ -25,8 +25,11 @@ func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshi
 
 	defer clientPool.Close()
 
-	c := clientPool.GetClusterClient(clusterIdentifier)
+	c, err := clientPool.GetClusterClient(clusterIdentifier)
 
+	if err != nil {
+		return err
+	}
 	owners, err := c.Owners()
 
 	if err != nil {
@@ -81,8 +84,11 @@ func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshi
 				database = cluster.DeclareDatabase(databaseName)
 			}
 
-			databaseClient := clientPool.GetDatabaseClient(database.ClusterIdentifier, databaseName)
+			databaseClient, err := clientPool.GetDatabaseClient(database.ClusterIdentifier, databaseName)
 
+			if err != nil {
+				return err
+			}
 			for _, row := range usersAndGroups {
 				user := row.Cells[0]
 				if !m.excluded.IsUserExcluded(user) {

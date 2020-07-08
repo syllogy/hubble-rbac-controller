@@ -14,29 +14,41 @@ func NewClientPool(clientGroup ClientGroup) *ClientPool {
 	}
 }
 
-func (c *ClientPool) GetClusterClient(clusterIdentifier string) *Client {
+func (c *ClientPool) GetClusterClient(clusterIdentifier string) (*Client, error) {
 
 	client, ok := c.masterClients[clusterIdentifier]
 
 	if !ok {
-		client, _ = c.clientGroup.MasterDatabase(clusterIdentifier)
+		client, err := c.clientGroup.MasterDatabase(clusterIdentifier)
+
+		if err != nil {
+			return nil, err
+		}
+
 		c.masterClients[clusterIdentifier] = client
+		return client, nil
 	}
 
-	return client
+	return client, nil
 }
 
-func (c *ClientPool) GetDatabaseClient(clusterIdentifier string, databaseName string) *Client {
+func (c *ClientPool) GetDatabaseClient(clusterIdentifier string, databaseName string) (*Client, error) {
 
 	identifier := clusterIdentifier+"."+databaseName
 	client, ok := c.clients[identifier]
 
 	if !ok {
-		client, _ = c.clientGroup.Database(clusterIdentifier, databaseName)
+		client, err := c.clientGroup.Database(clusterIdentifier, databaseName)
+
+		if err != nil {
+			return nil, err
+		}
+
 		c.clients[identifier] = client
+		return client, nil
 	}
 
-	return client
+	return client, nil
 }
 
 func (c *ClientPool) Close() {
