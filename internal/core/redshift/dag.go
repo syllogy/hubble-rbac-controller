@@ -4,10 +4,24 @@ import (
 	"fmt"
 )
 
+type DagModel interface {
+	Equals(other DagModel) bool
+}
+
 type ManageAccessModel struct {
 	Database   *Database
 	SchemaName string
 	GroupName  string
+}
+
+func (s *ManageAccessModel) Equals(rhs DagModel) bool {
+	other, ok := rhs.(*ManageAccessModel)
+	if !ok {
+		return false
+	}
+	return s.Database.Name == other.Database.Name &&
+		s.GroupName == other.GroupName &&
+		s.SchemaName == other.SchemaName
 }
 
 type ManageMembershipModel struct {
@@ -16,9 +30,28 @@ type ManageMembershipModel struct {
 	GroupName         string
 }
 
+func (s *ManageMembershipModel) Equals(rhs DagModel) bool {
+	other, ok := rhs.(*ManageMembershipModel)
+	if !ok {
+		return false
+	}
+	return s.Username == other.Username &&
+		s.GroupName == other.GroupName &&
+		s.ClusterIdentifier == other.ClusterIdentifier
+}
+
 type DatabaseModel struct {
 	Database          *Database
 	ClusterIdentifier string
+}
+
+func (s *DatabaseModel) Equals(rhs DagModel) bool {
+	other, ok := rhs.(*DatabaseModel)
+	if !ok {
+		return false
+	}
+	return s.Database.Name == other.Database.Name &&
+		s.ClusterIdentifier == other.ClusterIdentifier
 }
 
 type UserModel struct {
@@ -26,9 +59,27 @@ type UserModel struct {
 	ClusterIdentifier string
 }
 
+func (s *UserModel) Equals(rhs DagModel) bool {
+	other, ok := rhs.(*UserModel)
+	if !ok {
+		return false
+	}
+	return s.User.Name == other.User.Name &&
+		s.ClusterIdentifier == other.ClusterIdentifier
+}
+
 type GroupModel struct {
 	Group             *Group
 	ClusterIdentifier string
+}
+
+func (s *GroupModel) Equals(rhs DagModel) bool {
+	other, ok := rhs.(*GroupModel)
+	if !ok {
+		return false
+	}
+	return s.Group.Name == other.Group.Name &&
+		s.ClusterIdentifier == other.ClusterIdentifier
 }
 
 type SchemaModel struct {
@@ -36,9 +87,29 @@ type SchemaModel struct {
 	Database *Database
 }
 
+func (s *SchemaModel) Equals(rhs DagModel) bool {
+	other, ok := rhs.(*SchemaModel)
+	if !ok {
+		return false
+	}
+	return s.Database.ClusterIdentifier == other.Database.ClusterIdentifier &&
+		s.Database.Name == other.Database.Name &&
+		s.Schema.Name == s.Schema.Name
+}
+
 type ExternalSchemaModel struct {
 	Schema   *ExternalSchema
 	Database *Database
+}
+
+func (s *ExternalSchemaModel) Equals(rhs DagModel) bool {
+	other, ok := rhs.(*ExternalSchemaModel)
+	if !ok {
+		return false
+	}
+	return s.Database.ClusterIdentifier == other.Database.ClusterIdentifier &&
+		s.Database.Name == other.Database.Name &&
+		s.Schema.Name == s.Schema.Name
 }
 
 type Dag struct {

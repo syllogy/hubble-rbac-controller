@@ -34,7 +34,7 @@ func (d *DagBuilder) UpdateModel(current *Model, desired *Model) *Dag {
 		}
 	}
 
-	return &Dag{tasks: d.tasks}
+	return NewDag(d.tasks)
 }
 
 func (d *DagBuilder) AddCluster(cluster *Cluster) {

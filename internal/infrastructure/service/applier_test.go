@@ -173,30 +173,30 @@ func TestApplier_Apply(t *testing.T) {
 	iamActual = iam.FetchIAMState(iamClient)
 	iam.AssertState(assert, iamActual, iamExpected, "IAM policy for jwr has been attached to role")
 
-	//log.Info("Revoke access")
-	//role.RevokeAccess(database)
-	//err = applier.Apply(model,false)
-	//failOnError(err)
-	//
-	//redshiftExpected = redshift.NewRedshiftState()
-	//redshiftExpected.Users = []string{"lunarway"}
-	//redshiftExpected.GroupMemberships = map[string][]string{"lunarway": {}}
-	//redshiftExpected.Groups = []string{}
-	//redshiftExpected.Grants = map[string][]string{}
-	//redshiftActual = redshift.FetchState(redshiftClient)
-	//redshift.AssertState(assert, redshiftActual, redshiftExpected, "the user, group and grants have been removed")
-	//
-	//iamExpected.Roles = map[string][]string{"BiAnalyst": {}}
-	//iamActual = iam.FetchIAMState(iamClient)
-	//iam.AssertState(assert, iamActual, iamExpected, "IAM policy for jwr has been detached from role")
-	//
-	//log.Info("Unassign user from role")
-	//user.Unassign(role)
-	//err = applier.Apply(model,false)
-	//failOnError(err)
-	//
-	//redshiftActual = redshift.FetchState(redshiftClient)
-	//redshift.AssertState(assert, redshiftActual, redshiftExpected, "the user, group and grants have been removed")
-	//iamActual = iam.FetchIAMState(iamClient)
-	//iam.AssertState(assert, iamActual, iamExpected, "IAM policy for jwr is still detached from role")
+	log.Info("Revoke access")
+	role.RevokeAccess(database)
+	err = applier.Apply(model,false)
+	failOnError(err)
+
+	redshiftExpected = redshift.NewRedshiftState()
+	redshiftExpected.Users = []string{"lunarway"}
+	redshiftExpected.GroupMemberships = map[string][]string{"lunarway": {}}
+	redshiftExpected.Groups = []string{}
+	redshiftExpected.Grants = map[string][]string{}
+	redshiftActual = redshift.FetchState(redshiftClient)
+	redshift.AssertState(assert, redshiftActual, redshiftExpected, "the user, group and grants have been removed")
+
+	iamExpected.Roles = map[string][]string{"BiAnalyst": {}}
+	iamActual = iam.FetchIAMState(iamClient)
+	iam.AssertState(assert, iamActual, iamExpected, "IAM policy for jwr has been detached from role")
+
+	log.Info("Unassign user from role")
+	user.Unassign(role)
+	err = applier.Apply(model,false)
+	failOnError(err)
+
+	redshiftActual = redshift.FetchState(redshiftClient)
+	redshift.AssertState(assert, redshiftActual, redshiftExpected, "the user, group and grants have been removed")
+	iamActual = iam.FetchIAMState(iamClient)
+	iam.AssertState(assert, iamActual, iamExpected, "IAM policy for jwr is still detached from role")
 }

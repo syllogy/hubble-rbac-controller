@@ -40,13 +40,13 @@ func (t TaskType) String() string {
 type Task struct {
 	identifier string
 	taskType TaskType
-	model interface{}
+	model DagModel
 	upStream []*Task
 	downStream []*Task
 	state TaskState
 }
 
-func NewTask(identifier string, taskType TaskType, model interface{}) *Task {
+func NewTask(identifier string, taskType TaskType, model DagModel) *Task {
 	return &Task{identifier: identifier, taskType: taskType, model: model, state: Pending}
 }
 
