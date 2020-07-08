@@ -112,19 +112,19 @@ func (s *ExternalSchemaModel) Equals(rhs DagModel) bool {
 		s.Schema.Name == s.Schema.Name
 }
 
-type Dag struct {
+type ReconciliationDag struct {
 	tasks []*Task
 }
 
-func NewDag(tasks []*Task) *Dag {
-	return &Dag{tasks: tasks}
+func NewDag(tasks []*Task) *ReconciliationDag {
+	return &ReconciliationDag{tasks: tasks}
 }
 
-func (d *Dag) NumTasks() int {
+func (d *ReconciliationDag) NumTasks() int {
 	return len(d.tasks)
 }
 
-func (d *Dag) GetWaiting() []*Task {
+func (d *ReconciliationDag) GetWaiting() []*Task {
 	var result []*Task
 
 	for _, task := range d.tasks {
@@ -135,7 +135,7 @@ func (d *Dag) GetWaiting() []*Task {
 	return result
 }
 
-func (d *Dag) GetFailed() []*Task {
+func (d *ReconciliationDag) GetFailed() []*Task {
 	var result []*Task
 
 	for _, task := range d.tasks {
@@ -146,7 +146,7 @@ func (d *Dag) GetFailed() []*Task {
 	return result
 }
 
-func (d *Dag) PendingExists() bool {
+func (d *ReconciliationDag) PendingExists() bool {
 	for _, task := range d.tasks {
 		if task.state == Pending {
 			return true
@@ -155,7 +155,7 @@ func (d *Dag) PendingExists() bool {
 	return false
 }
 
-func (d *Dag) String() string {
+func (d *ReconciliationDag) String() string {
 	var result string
 
 	for _, t := range d.tasks {

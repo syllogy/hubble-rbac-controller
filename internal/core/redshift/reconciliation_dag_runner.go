@@ -14,7 +14,7 @@ func NewSequentialDagRunner(taskRunner TaskRunner, logger logr.Logger) *Sequenti
 	return &SequentialDagRunner{taskRunner: taskRunner, logger: logger}
 }
 
-func (d *SequentialDagRunner) Run(dag *Dag) {
+func (d *SequentialDagRunner) Run(dag *ReconciliationDag) {
 
 	for dag.PendingExists() {
 		for _, task := range dag.GetWaiting() {
