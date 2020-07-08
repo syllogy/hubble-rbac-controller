@@ -88,7 +88,7 @@ func TestApplier_Apply(t *testing.T) {
 	excludedUsers := []string{"lunarway"}
 	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
 	clientGroup := redshift.NewClientGroup(map[string]*redshift.ClusterCredentials{"hubble": &localhostCredentials})
-	redshiftApplier := redshift.NewDagBasedApplier(clientGroup, redshiftCore.NewExclusions(excludedDatabases, excludedUsers), accountId, logger)
+	redshiftApplier := redshift.NewApplier(clientGroup, redshiftCore.NewExclusions(excludedDatabases, excludedUsers), accountId, logger)
 
 	googleApplier := google.NewFakeApplier()
 

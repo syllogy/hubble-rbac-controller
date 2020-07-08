@@ -48,8 +48,8 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 		ExternalSchemasSupported: true,
 	}
 
-	clientGroup := redshift.NewClientGroupY(&redshiftCredentials)
-	redshiftApplier := redshift.NewDagBasedApplier(clientGroup,  redshiftCore.NewExclusions(excludedDatabases, excludedUsers), conf.AwsAccountId, log)
+	clientGroup := redshift.NewClientGroup(&redshiftCredentials)
+	redshiftApplier := redshift.NewApplier(clientGroup,  redshiftCore.NewExclusions(excludedDatabases, excludedUsers), conf.AwsAccountId, log)
 
 	session := iam.AwsSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)

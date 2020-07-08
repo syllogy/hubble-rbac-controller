@@ -10,15 +10,15 @@ type Applier interface {
 	Apply(model redshiftCore.Model) error
 }
 
-type DagBasedApplier struct {
+type ApplierImpl struct {
 	clientGroup     ClientGroup
 	excluded *redshiftCore.Exclusions
 	awsAccountId    string
 	logger logr.Logger
 }
 
-func NewDagBasedApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsAccountId string, logger logr.Logger) *DagBasedApplier {
-	return &DagBasedApplier{
+func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsAccountId string, logger logr.Logger) *ApplierImpl {
+	return &ApplierImpl{
 		clientGroup:     clientGroup,
 		excluded: excluded,
 		awsAccountId:    awsAccountId,
@@ -26,8 +26,7 @@ func NewDagBasedApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusio
 	}
 }
 
-
-func (applier *DagBasedApplier) Apply(model redshiftCore.Model) error {
+func (applier *ApplierImpl) Apply(model redshiftCore.Model) error {
 
 	err := model.Validate(applier.excluded)
 
@@ -62,8 +61,8 @@ func (applier *DagBasedApplier) Apply(model redshiftCore.Model) error {
 	applier.logger.Info("Current model", "model", currentModel)
 	applier.logger.Info("Desired model", "model", model)
 
-	dagBuilder := redshiftCore.NewReconciliationDagBuilder()
-	dag := dagBuilder.Reconcile(currentModel, &model)
+	reconciler := redshiftCore.NewReconciler()
+	dag := reconciler.Reconcile(currentModel, &model)
 
 	applier.logger.Info("Reconciliation DAG built", "numTasks", dag.NumTasks())
 

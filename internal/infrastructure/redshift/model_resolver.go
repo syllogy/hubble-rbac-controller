@@ -5,6 +5,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// The ModelResolver can query the clusters and resolve the current state and return it as a redshift.Model.
 type ModelResolver struct {
 	clientGroup ClientGroup
 	excluded *redshift.Exclusions
@@ -115,6 +116,7 @@ func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshi
 	return nil
 }
 
+// Queries the given clusters for their state and builds up a model representing the current state
 func (m *ModelResolver) Resolve(clusterIdentifiers []string) (*redshift.Model, error) {
 
 	model := &redshift.Model{}

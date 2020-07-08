@@ -4,15 +4,27 @@ import (
 	"fmt"
 )
 
-type ReconciliationDagBuilder struct {
+// The Reconciler knows how to reconcile two different instances of the redshift.Model.
+// It will run the sequence of operations needed to transform the source model to the target model.
+// It is nondestructive with regards to data. This means it will never drop a database, a schema or table,
+// but it will drop groups, users etc.
+type Reconciler struct {
 	tasks []*Task
 }
 
-func NewReconciliationDagBuilder() *ReconciliationDagBuilder {
-	return &ReconciliationDagBuilder{}
+func NewReconciler() *Reconciler {
+	return &Reconciler{}
 }
 
-func (d *ReconciliationDagBuilder) Reconcile(current *Model, desired *Model) *ReconciliationDag {
+// Reconciles the two models.
+// The operations need to be executed in an order that respects the dependencies between the objects
+// otherwise the operations will fail. E.g. redshift will complain if one attempts to drop a group that has members or has grants on schemas.
+// Instead of executing the reconciliation it returns a DAG that represents the reconciliation process as a set of tasks.
+// The DAG can be executed using the SequentialDagRunner.
+// By modelling the process as a DAG we decouple the interdependencies of the tasks with the execution. This allows us to optimise the execution
+// independently from the task interdependencies (e.g. parallelising it). It also makes the code easier to understand and maintain because the code structure
+// would otherwise be coupled to the task interdependencies (the order of the function calls in the code would have to respect the dependencies)
+func (d *Reconciler) Reconcile(current *Model, desired *Model) *ReconciliationDag {
 
 	for _, currentCluster := range current.Clusters {
 		desiredCluster := desired.LookupCluster(currentCluster.Identifier)
@@ -37,7 +49,7 @@ func (d *ReconciliationDagBuilder) Reconcile(current *Model, desired *Model) *Re
 	return NewDag(d.tasks)
 }
 
-func (d *ReconciliationDagBuilder) addCluster(cluster *Cluster) {
+func (d *Reconciler) addCluster(cluster *Cluster) {
 
 	for _, desiredGroup := range cluster.Groups {
 		d.createGroup(cluster.Identifier, desiredGroup)
@@ -52,7 +64,7 @@ func (d *ReconciliationDagBuilder) addCluster(cluster *Cluster) {
 	}
 }
 
-func (d *ReconciliationDagBuilder) dropCluster(cluster *Cluster) {
+func (d *Reconciler) dropCluster(cluster *Cluster) {
 
 	for _, currentUser := range cluster.Users {
 		d.dropUser(cluster.Identifier, currentUser)
@@ -67,7 +79,7 @@ func (d *ReconciliationDagBuilder) dropCluster(cluster *Cluster) {
 	}
 }
 
-func (d *ReconciliationDagBuilder) updateCluster(currentCluster *Cluster, desiredCluster *Cluster) {
+func (d *Reconciler) updateCluster(currentCluster *Cluster, desiredCluster *Cluster) {
 
 	for _, currentUser := range currentCluster.Users {
 		desiredUser := desiredCluster.LookupUser(currentUser.Name)
@@ -126,7 +138,7 @@ func (d *ReconciliationDagBuilder) updateCluster(currentCluster *Cluster, desire
 	}
 }
 
-func (d *ReconciliationDagBuilder) addDatabase(database *Database) {
+func (d *Reconciler) addDatabase(database *Database) {
 
 	d.createDatabaseTask(database.ClusterIdentifier, database)
 
@@ -135,7 +147,7 @@ func (d *ReconciliationDagBuilder) addDatabase(database *Database) {
 	}
 }
 
-func (d *ReconciliationDagBuilder) dropDatabase(database *Database) {
+func (d *Reconciler) dropDatabase(database *Database) {
 
 	for _, group := range database.Groups {
 		d.dropDatabaseGroup(database, group)
@@ -152,7 +164,7 @@ func stringsEqual(lhs *string, rhs *string) bool {
 	return false
 }
 
-func (d *ReconciliationDagBuilder) updateDatabase(currentDatabase *Database, desiredDatabase *Database) {
+func (d *Reconciler) updateDatabase(currentDatabase *Database, desiredDatabase *Database) {
 
 	if !stringsEqual(currentDatabase.Owner, desiredDatabase.Owner) {
 		panic(fmt.Errorf("Owners are different!!!"))
@@ -181,7 +193,7 @@ func (d *ReconciliationDagBuilder) updateDatabase(currentDatabase *Database, des
 	}
 }
 
-func (d *ReconciliationDagBuilder) createUser(clusterIdentifier string, user *User) {
+func (d *Reconciler) createUser(clusterIdentifier string, user *User) {
 
 	createUserTask := d.createUserTask(clusterIdentifier, user)
 	addToGroupTask := d.addToGroupTask(clusterIdentifier,user, user.Role())
@@ -193,7 +205,7 @@ func (d *ReconciliationDagBuilder) createUser(clusterIdentifier string, user *Us
 	}
 }
 
-func (d *ReconciliationDagBuilder) dropUser(clusterIdentifier string, user *User) {
+func (d *Reconciler) dropUser(clusterIdentifier string, user *User) {
 
 	dropUserTask := d.dropUserTask(clusterIdentifier, user)
 
@@ -204,7 +216,7 @@ func (d *ReconciliationDagBuilder) dropUser(clusterIdentifier string, user *User
 
 }
 
-func (d *ReconciliationDagBuilder) updateUser(clusterIdentifier string, current *User, desired *User) {
+func (d *Reconciler) updateUser(clusterIdentifier string, current *User, desired *User) {
 
 	for _, group := range current.MemberOf {
 		if group.Name != desired.Role().Name {
@@ -228,7 +240,7 @@ func (d *ReconciliationDagBuilder) updateUser(clusterIdentifier string, current 
 	}
 }
 
-func (d *ReconciliationDagBuilder) createGroup(clusterIdentifier string, group *Group) {
+func (d *Reconciler) createGroup(clusterIdentifier string, group *Group) {
 
 	createGroupTask := d.createGroupTask(clusterIdentifier, group)
 	addToGroupTasks := d.lookupAddToGroupTasks(clusterIdentifier, group.Name)
@@ -238,7 +250,7 @@ func (d *ReconciliationDagBuilder) createGroup(clusterIdentifier string, group *
 	}
 }
 
-func (d *ReconciliationDagBuilder) dropGroup(clusterIdentifier string, group *Group) {
+func (d *Reconciler) dropGroup(clusterIdentifier string, group *Group) {
 
 	dropGroupTask := d.dropGroupTask(clusterIdentifier, group)
 	removeFromGroupTasks := d.lookupRemoveFromGroupTasks(clusterIdentifier, group.Name)
@@ -248,7 +260,7 @@ func (d *ReconciliationDagBuilder) dropGroup(clusterIdentifier string, group *Gr
 	}
 }
 
-func (d *ReconciliationDagBuilder) addDatabaseGroup(database *Database, group *DatabaseGroup) {
+func (d *Reconciler) addDatabaseGroup(database *Database, group *DatabaseGroup) {
 
 	createDatabaseTask := d.lookupCreateDatabaseTask(database.ClusterIdentifier, database.Name)
 
@@ -297,7 +309,7 @@ func (d *ReconciliationDagBuilder) addDatabaseGroup(database *Database, group *D
 	}
 }
 
-func (d *ReconciliationDagBuilder) dropDatabaseGroup(database *Database, group *DatabaseGroup) {
+func (d *Reconciler) dropDatabaseGroup(database *Database, group *DatabaseGroup) {
 
 	for _, schema := range group.GrantedSchemas {
 
@@ -322,7 +334,7 @@ func (d *ReconciliationDagBuilder) dropDatabaseGroup(database *Database, group *
 	}
 }
 
-func (d *ReconciliationDagBuilder) updateDatabaseGroup(database *Database, current *DatabaseGroup, desired *DatabaseGroup) {
+func (d *Reconciler) updateDatabaseGroup(database *Database, current *DatabaseGroup, desired *DatabaseGroup) {
 
 	for _, schema := range current.GrantedSchemas {
 
@@ -389,4 +401,3 @@ func (d *ReconciliationDagBuilder) updateDatabaseGroup(database *Database, curre
 		}
 	}
 }
-

@@ -37,16 +37,20 @@ func (t TaskType) String() string {
 		"CreateExternalSchema", "CreateDatabase", "GrantAccess", "RevokeAccess", "AddToGroup", "RemoveFromGroup"}[t]
 }
 
-type Task struct {
-	identifier string
-	taskType TaskType
-	model DagModel
-	upStream []*Task
-	downStream []*Task
-	state TaskState
+type Equatable interface {
+	Equals(other Equatable) bool
 }
 
-func NewTask(identifier string, taskType TaskType, model DagModel) *Task {
+type Task struct {
+	identifier string
+	taskType   TaskType
+	model      Equatable
+	upStream   []*Task
+	downStream []*Task
+	state      TaskState
+}
+
+func NewTask(identifier string, taskType TaskType, model Equatable) *Task {
 	return &Task{identifier: identifier, taskType: taskType, model: model, state: Pending}
 }
 

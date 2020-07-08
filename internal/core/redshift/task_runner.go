@@ -10,10 +10,10 @@ type TaskRunner interface {
 	CreateSchema(model *SchemaModel) error
 	CreateExternalSchema(model *ExternalSchemaModel) error
 	CreateDatabase(model *DatabaseModel) error
-	GrantAccess(model *ManageAccessModel) error
-	RevokeAccess(model *ManageAccessModel) error
-	AddToGroup(model *ManageMembershipModel) error
-	RemoveFromGroup(model *ManageMembershipModel) error
+	GrantAccess(model *GrantsModel) error
+	RevokeAccess(model *GrantsModel) error
+	AddToGroup(model *MembershipModel) error
+	RemoveFromGroup(model *MembershipModel) error
 }
 
 func ExecuteTask(taskRunner TaskRunner, task *Task) error {
@@ -33,13 +33,13 @@ func ExecuteTask(taskRunner TaskRunner, task *Task) error {
 	case CreateExternalSchema:
 		return taskRunner.CreateExternalSchema(task.model.(*ExternalSchemaModel))
 	case GrantAccess:
-		return taskRunner.GrantAccess(task.model.(*ManageAccessModel))
+		return taskRunner.GrantAccess(task.model.(*GrantsModel))
 	case RevokeAccess:
-		return taskRunner.RevokeAccess(task.model.(*ManageAccessModel))
+		return taskRunner.RevokeAccess(task.model.(*GrantsModel))
 	case AddToGroup:
-		return taskRunner.AddToGroup(task.model.(*ManageMembershipModel))
+		return taskRunner.AddToGroup(task.model.(*MembershipModel))
 	case RemoveFromGroup:
-		return taskRunner.RemoveFromGroup(task.model.(*ManageMembershipModel))
+		return taskRunner.RemoveFromGroup(task.model.(*MembershipModel))
 	default:
 		return fmt.Errorf("unexpected task type: %d", int(task.taskType))
 	}
@@ -78,19 +78,19 @@ func (t *TaskPrinter) CreateDatabase(model *DatabaseModel) error {
 	fmt.Printf("CreateDatabase %s.%s\n", model.ClusterIdentifier, model.Database.Name)
 	return nil
 }
-func (t *TaskPrinter) GrantAccess(model *ManageAccessModel) error {
+func (t *TaskPrinter) GrantAccess(model *GrantsModel) error {
 	fmt.Printf("GrantAccess (%s.%s) %s->%s\n", model.Database.ClusterIdentifier, model.Database.Name, model.GroupName, model.SchemaName)
 	return nil
 }
-func (t *TaskPrinter) RevokeAccess(model *ManageAccessModel) error {
+func (t *TaskPrinter) RevokeAccess(model *GrantsModel) error {
 	fmt.Printf("RevokeAccess (%s.%s) %s->%s\n", model.Database.ClusterIdentifier, model.Database.Name, model.GroupName, model.SchemaName)
 	return nil
 }
-func (t *TaskPrinter) AddToGroup(model *ManageMembershipModel) error {
+func (t *TaskPrinter) AddToGroup(model *MembershipModel) error {
 	fmt.Printf("AddToGroup (%s) %s->%s\n", model.ClusterIdentifier, model.Username, model.GroupName)
 	return nil
 }
-func (t *TaskPrinter) RemoveFromGroup(model *ManageMembershipModel) error {
+func (t *TaskPrinter) RemoveFromGroup(model *MembershipModel) error {
 	fmt.Printf("RemoveFromGroup (%s) %s->%s\n", model.ClusterIdentifier, model.Username, model.GroupName)
 	return nil
 }

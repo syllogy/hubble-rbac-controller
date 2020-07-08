@@ -45,7 +45,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	excludedDatabases := []string{"template0", "postgres"}
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewDagBasedApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger)
+	applier := NewApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger)
 
 	//Create empty model
 	model := redshift.Model{}
@@ -146,7 +146,7 @@ func TestApplier_FailsOnExcludedUser(t *testing.T) {
 	excludedDatabases := []string{"template0", "postgres"}
 
 	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewDagBasedApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger)
+	applier := NewApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger)
 
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")

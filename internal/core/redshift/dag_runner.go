@@ -34,3 +34,5 @@ func (d *SequentialDagRunner) Run(dag *ReconciliationDag) {
 		}
 	}
 }
+
+//TODO: implement a DAG runner that can parallelize the execution
