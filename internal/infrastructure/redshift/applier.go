@@ -61,8 +61,8 @@ func (applier *ApplierImpl) Apply(model redshiftCore.Model) error {
 	applier.logger.Info("Current model", "model", currentModel)
 	applier.logger.Info("Desired model", "model", model)
 
-	reconciler := redshiftCore.NewReconciler()
-	dag := reconciler.Reconcile(currentModel, &model)
+	reconciler := redshiftCore.NewReconciler(currentModel, &model)
+	dag := reconciler.Reconcile()
 
 	applier.logger.Info("Reconciliation DAG built", "numTasks", dag.NumTasks())
 

@@ -1,7 +1,6 @@
 package redshift
 
 import (
-	"fmt"
 	"github.com/go-logr/logr"
 )
 
@@ -19,7 +18,7 @@ func (d *SequentialDagRunner) Run(dag *ReconciliationDag) {
 	for dag.PendingExists() {
 		for _, task := range dag.GetWaiting() {
 			if task.CannotRun() {
-				fmt.Printf("skipping task %s\n", task.identifier)
+				d.logger.Info("skipping task", "task", task.identifier)
 				task.Skip()
 			} else {
 				task.Start()

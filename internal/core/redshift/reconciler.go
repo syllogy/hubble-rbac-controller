@@ -9,25 +9,27 @@ import (
 // It is nondestructive with regards to data. This means it will never drop a database, a schema or table,
 // but it will drop groups, users etc.
 type Reconciler struct {
+	current *Model
+	desired *Model
 	tasks []*Task
 }
 
-func NewReconciler() *Reconciler {
-	return &Reconciler{}
+func NewReconciler(current *Model, desired *Model) *Reconciler {
+	return &Reconciler{current:current, desired:desired}
 }
 
 // Reconciles the two models.
 // The operations need to be executed in an order that respects the dependencies between the objects
 // otherwise the operations will fail. E.g. redshift will complain if one attempts to drop a group that has members or has grants on schemas.
-// Instead of executing the reconciliation it returns a DAG that represents the reconciliation process as a set of tasks.
+// Instead of executing the reconciliation it returns a DAG that represents the reconciliation process as a DAG of tasks.
 // The DAG can be executed using the SequentialDagRunner.
 // By modelling the process as a DAG we decouple the interdependencies of the tasks with the execution. This allows us to optimise the execution
 // independently from the task interdependencies (e.g. parallelising it). It also makes the code easier to understand and maintain because the code structure
 // would otherwise be coupled to the task interdependencies (the order of the function calls in the code would have to respect the dependencies)
-func (d *Reconciler) Reconcile(current *Model, desired *Model) *ReconciliationDag {
+func (d *Reconciler) Reconcile() *ReconciliationDag {
 
-	for _, currentCluster := range current.Clusters {
-		desiredCluster := desired.LookupCluster(currentCluster.Identifier)
+	for _, currentCluster := range d.current.Clusters {
+		desiredCluster := d.desired.LookupCluster(currentCluster.Identifier)
 
 		if desiredCluster == nil {
 			d.dropCluster(currentCluster)
@@ -36,8 +38,8 @@ func (d *Reconciler) Reconcile(current *Model, desired *Model) *ReconciliationDa
 		}
 	}
 
-	for _, desiredCluster := range desired.Clusters {
-		currentCluster := current.LookupCluster(desiredCluster.Identifier)
+	for _, desiredCluster := range d.desired.Clusters {
+		currentCluster := d.current.LookupCluster(desiredCluster.Identifier)
 
 		if currentCluster == nil {
 			d.addCluster(desiredCluster)
