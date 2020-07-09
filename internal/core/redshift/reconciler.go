@@ -4,18 +4,27 @@ import (
 	"fmt"
 )
 
+type ReconcilerConfig struct {
+	RevokeAccessToPublicSchema bool
+}
+
+func DefaultReconcilerConfig() ReconcilerConfig {
+	return ReconcilerConfig {RevokeAccessToPublicSchema:true}
+}
+
 // The Reconciler knows how to reconcile two different instances of the redshift.Model.
 // It will run the sequence of operations needed to transform the source model to the target model.
 // It is nondestructive with regards to data. This means it will never drop a database, a schema or table,
 // but it will drop groups, users etc.
 type Reconciler struct {
+	config ReconcilerConfig
 	current *Model
 	desired *Model
 	tasks []*Task
 }
 
-func NewReconciler(current *Model, desired *Model) *Reconciler {
-	return &Reconciler{current:current, desired:desired}
+func NewReconciler(current *Model, desired *Model, config ReconcilerConfig) *Reconciler {
+	return &Reconciler{current:current, desired:desired, config: config}
 }
 
 // Reconciles the two models.
@@ -315,7 +324,7 @@ func (d *Reconciler) dropDatabaseGroup(database *Database, group *DatabaseGroup)
 
 	for _, schema := range group.GrantedSchemas {
 
-		if schema.Name != "xpublic" { //groups will always get access to the public schema in all database and we can't revoke it
+		if d.config.RevokeAccessToPublicSchema || schema.Name != "public" {
 			revokeAccessTask := d.revokeAccessTask(database, schema.Name, group.Name)
 
 			dropGroupTask := d.lookupDropGroupTask(database.ClusterIdentifier, group.Name)
@@ -343,7 +352,7 @@ func (d *Reconciler) updateDatabaseGroup(database *Database, current *DatabaseGr
 		grantDesired := desired.LookupGrantedSchema(schema.Name)
 
 		if grantDesired == nil {
-			if schema.Name != "xpublic" { //groups will always get access to the public schema in all database and we can't revoke it
+			if d.config.RevokeAccessToPublicSchema || schema.Name != "public" {
 				revokeAccessTask := d.revokeAccessTask(database, schema.Name, current.Name)
 
 				dropGroupTask := d.lookupDropGroupTask(database.ClusterIdentifier, current.Name)

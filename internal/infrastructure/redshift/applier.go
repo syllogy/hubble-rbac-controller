@@ -7,26 +7,28 @@ import (
 )
 
 type Applier interface {
-	Apply(model redshiftCore.Model) error
+	Apply(model redshiftCore.Model, dryRun bool) error
 }
 
 type ApplierImpl struct {
+	reconcilerConfig redshiftCore.ReconcilerConfig
 	clientGroup     ClientGroup
 	excluded *redshiftCore.Exclusions
 	awsAccountId    string
 	logger logr.Logger
 }
 
-func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsAccountId string, logger logr.Logger) *ApplierImpl {
+func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshiftCore.ReconcilerConfig) *ApplierImpl {
 	return &ApplierImpl{
 		clientGroup:     clientGroup,
+		reconcilerConfig:reconcilerConfig,
 		excluded: excluded,
 		awsAccountId:    awsAccountId,
 		logger: logger,
 	}
 }
 
-func (applier *ApplierImpl) Apply(model redshiftCore.Model) error {
+func (applier *ApplierImpl) Apply(model redshiftCore.Model, dryRun bool) error {
 
 	err := model.Validate(applier.excluded)
 
@@ -39,8 +41,13 @@ func (applier *ApplierImpl) Apply(model redshiftCore.Model) error {
 	defer clientPool.Close()
 
 	resolver := NewModelResolver(applier.clientGroup, applier.excluded)
-	taskRunner := NewTaskRunnerImpl(clientPool, applier.awsAccountId, applier.logger)
-	//taskRunner := &redshiftCore.TaskPrinter{}
+	var taskRunner redshiftCore.TaskRunner
+	if dryRun {
+		taskRunner = &redshiftCore.TaskPrinter{}
+	} else {
+		taskRunner = NewTaskRunnerImpl(clientPool, applier.awsAccountId, applier.logger)
+	}
+
 	dagRunner := redshiftCore.NewSequentialDagRunner(taskRunner, applier.logger)
 
 	var clusterIdentifiers []string
@@ -48,7 +55,7 @@ func (applier *ApplierImpl) Apply(model redshiftCore.Model) error {
 		clusterIdentifiers = append(clusterIdentifiers, cluster.Identifier)
 	}
 
-	applier.logger.Info("Fetching current model..")
+	applier.logger.Info("Fetching current model...")
 
 	currentModel, err := resolver.Resolve(clusterIdentifiers)
 
@@ -56,12 +63,9 @@ func (applier *ApplierImpl) Apply(model redshiftCore.Model) error {
 		return err
 	}
 
-	applier.logger.Info("Fetching current model DONE")
+	applier.logger.Info("Current model fetched", "model", currentModel)
 
-	applier.logger.Info("Current model", "model", currentModel)
-	applier.logger.Info("Desired model", "model", model)
-
-	reconciler := redshiftCore.NewReconciler(currentModel, &model)
+	reconciler := redshiftCore.NewReconciler(currentModel, &model, applier.reconcilerConfig)
 	dag := reconciler.Reconcile()
 
 	applier.logger.Info("Reconciliation DAG built", "numTasks", dag.NumTasks())

@@ -49,7 +49,10 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 	}
 
 	clientGroup := redshift.NewClientGroup(&redshiftCredentials)
-	redshiftApplier := redshift.NewApplier(clientGroup,  redshiftCore.NewExclusions(excludedDatabases, excludedUsers), conf.AwsAccountId, log)
+
+	//for some reason revoking access to the public schema in Redshift has no effect, so every reconcile would try to revoke access to all public schemas (so we skip it)
+	config := redshiftCore.ReconcilerConfig{RevokeAccessToPublicSchema:false}
+	redshiftApplier := redshift.NewApplier(clientGroup,  redshiftCore.NewExclusions(excludedDatabases, excludedUsers), conf.AwsAccountId, log, config)
 
 	session := iam.AwsSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)
