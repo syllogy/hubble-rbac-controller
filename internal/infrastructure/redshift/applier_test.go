@@ -51,7 +51,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")
 
-	err := applier.Apply(model)
+	err := applier.Apply(model, false)
 	assert.NoError(err)
 
 	//Create a database with a BI user
@@ -61,7 +61,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	biDatabaseGroup := database.DeclareGroup("bianalyst")
 	database.DeclareUser("jwr_bianalyst")
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	redshiftClient, err := clientGroup.ForDatabase(database)
@@ -78,7 +78,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	//Grant access to "bi"
 	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "bi" })
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
@@ -92,7 +92,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	//Grant access to "test"
 	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "test" })
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
@@ -107,7 +107,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	cluster.DeclareUser("nra_bianalyst", biGroup)
 	database.DeclareUser("nra_bianalyst")
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
@@ -125,7 +125,7 @@ func TestApplier_ManageResources(t *testing.T) {
 	cluster.DeclareUser("jwr_aml", amlGroup)
 	database.DeclareUser("jwr_aml")
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
@@ -156,6 +156,6 @@ func TestApplier_FailsOnExcludedUser(t *testing.T) {
 	cluster.DeclareUser("lunarway", biGroup)
 	database.DeclareUser("lunarway")
 
-	err := applier.Apply(model)
+	err := applier.Apply(model, false)
 	assert.Error(err)
 }

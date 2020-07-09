@@ -23,10 +23,6 @@ type Reconciler struct {
 	tasks []*Task
 }
 
-func NewReconciler(current *Model, desired *Model, config ReconcilerConfig) *Reconciler {
-	return &Reconciler{current:current, desired:desired, config: config}
-}
-
 // Reconciles the two models.
 // The operations need to be executed in an order that respects the dependencies between the objects
 // otherwise the operations will fail. E.g. redshift will complain if one attempts to drop a group that has members or has grants on schemas.
@@ -35,7 +31,9 @@ func NewReconciler(current *Model, desired *Model, config ReconcilerConfig) *Rec
 // By modelling the process as a DAG we decouple the interdependencies of the tasks with the execution. This allows us to optimise the execution
 // independently from the task interdependencies (e.g. parallelising it). It also makes the code easier to understand and maintain because the code structure
 // would otherwise be coupled to the task interdependencies (the order of the function calls in the code would have to respect the dependencies)
-func (d *Reconciler) Reconcile() *ReconciliationDag {
+func Reconcile(current *Model, desired *Model, config ReconcilerConfig) *ReconciliationDag {
+
+	d := &Reconciler{current:current, desired:desired, config: config}
 
 	for _, currentCluster := range d.current.Clusters {
 		desiredCluster := d.desired.LookupCluster(currentCluster.Identifier)

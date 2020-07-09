@@ -43,8 +43,7 @@ func Test_Dag1(t *testing.T) {
 
 	current := buildCurrent()
 	desired := buildDesired()
-	dagBuilder := NewReconciler(&current, &desired)
-	dag := dagBuilder.Reconcile()
+	dag := Reconcile(&current, &desired, DefaultReconcilerConfig())
 
 	assert.Equal(8, dag.NumTasks())
 }

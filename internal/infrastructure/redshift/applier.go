@@ -65,8 +65,7 @@ func (applier *ApplierImpl) Apply(model redshiftCore.Model, dryRun bool) error {
 
 	applier.logger.Info("Current model fetched", "model", currentModel)
 
-	reconciler := redshiftCore.NewReconciler(currentModel, &model, applier.reconcilerConfig)
-	dag := reconciler.Reconcile()
+	dag := redshiftCore.Reconcile(currentModel, &model, applier.reconcilerConfig)
 
 	applier.logger.Info("Reconciliation DAG built", "numTasks", dag.NumTasks())
 
