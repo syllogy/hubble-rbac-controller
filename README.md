@@ -5,7 +5,73 @@ This repo contains the implementation of a kubernetes controller called hubble-r
 The repo https://github.com/lunarway/lunar-way-hubble-rbac-controller contains the actual deployment of the controller at Lunar.
 The controller controls HubbleRbac custom resources. A HubbleRbac custom resource declares the users, roles and databases the Hubble platform consists of. They are maintained here: https://github.com/lunarway/hubble-access
 
-## Code structure
+
+### How it works
+Given this CRD
+```
+apiVersion: lunarway.com/v1alpha1
+kind: HubbleRbac
+metadata:
+  name: hubblerbac
+  namespace: datascience
+spec:
+  policies:
+    - name: access-to-secrets
+      arn: "arn:aws:iam::478824949770:policy/AllowGetHubbleSecrets-prod"
+
+  databases:
+    - name: unstable
+      cluster: hubble-unstable
+      database: prod
+
+  roles:
+    - name: BiAnalyst
+      databases:
+        - unstable
+      datawarehouseGrants:
+        - public
+        - public_bi
+
+  users:
+    - name: jwr
+      email: "jwr@lunar.app"
+      roles:
+        - BiAnalyst
+    
+```
+
+
+the controller wlll take the following steps: 
+1. Create an IAM role called "BiAnalyst" and attach a policy called jwr_bianalyst 
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": "redshift:GetClusterCredentials",
+            "Resource": [
+                "arn:aws:redshift:eu-west-1:478824949770:dbuser:hubble-unstable/jwr_bianalyst",
+                "arn:aws:redshift:eu-west-1:478824949770:dbname:hubble-unstable/prod"
+            ],
+            "Condition": {
+                "StringLike": {
+                    "aws:userid": "*:jwr@lunar.app"
+                }
+            }
+        }
+    ]
+}
+```
+that will allow the jwr user to log into the prod database on the unstable cluster as the "jwr_bianalyst" user.
+
+2. Modify the google account of jwr@lunar.app to allow that user to log into the "data" AWS account as the BiAnalyst role.
+3. Create the prod database and the public and public_bi schemas (if they don't already exist).
+4. Create a redshift group called "bianalyst" and grant that group access to the public and public_bi schemas on the "prod" database.
+5. Add the jwr_bianalyst to the bianalyst group.
+
+
+## Contributing
 
 To build the code:
 ```
@@ -16,7 +82,7 @@ $ make code/compile
 The code structure is loosely based on the onion architecture (also known as hexagonical architecture or clean architecture).
 There are 3 main layers: core, infrastructure, kubernetes
 
-### Core
+### Core layer
 *Located at:* `internal/core` \
 *Description:* Contains all the internal logic, there are no infrastructure dependencies, all tests are unit tests.
 To run unit tests:
@@ -24,7 +90,7 @@ To run unit tests:
 $ make test/unit 
 ```
 
-### Infrastructure
+### Infrastructure layer
 *Located at:* `internal/infrastructure` \
 *Description:* contains all infrastructure code, most tests are integration tests.
 To run integration tests:
@@ -34,7 +100,7 @@ $ make test/integration
 $ docker-compose down 
 ```
 
-### Kubernetes
+### Kubernetes layer
 *Located at:* `pkg/` \
 *Description:* Contains the kubernetes controller and everything related to kubernetes.      
 To run the controller locally, define all the env variables needed by the configuration (defined in pgk/configuration/configuration.go) and run:
@@ -42,7 +108,7 @@ To run the controller locally, define all the env variables needed by the config
 $ make run/local
 ```
 
-
+### Releasing
 To release a new version, create a git release tag and push it to github.
 
 ## Manual set up of the google integration
