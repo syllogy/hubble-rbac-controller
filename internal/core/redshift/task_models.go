@@ -86,7 +86,7 @@ func (s *SchemaModel) Equals(rhs Equatable) bool {
 	}
 	return s.Database.ClusterIdentifier == other.Database.ClusterIdentifier &&
 		s.Database.Name == other.Database.Name &&
-		s.Schema.Name == s.Schema.Name
+		s.Schema.Name == other.Schema.Name
 }
 
 type ExternalSchemaModel struct {
@@ -101,6 +101,6 @@ func (s *ExternalSchemaModel) Equals(rhs Equatable) bool {
 	}
 	return s.Database.ClusterIdentifier == other.Database.ClusterIdentifier &&
 		s.Database.Name == other.Database.Name &&
-		s.Schema.Name == s.Schema.Name
+		s.Schema.Name == other.Schema.Name
 }
 
