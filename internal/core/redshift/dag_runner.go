@@ -25,7 +25,7 @@ func (d *SequentialDagRunner) Run(dag *ReconciliationDag) {
 				err := ExecuteTask(d.taskRunner, task)
 				if err != nil {
 					task.Failed()
-					d.logger.Error(err, "task failed")
+					d.logger.Error(err, "task failed", "task", task.String())
 				} else {
 					task.Success()
 				}
