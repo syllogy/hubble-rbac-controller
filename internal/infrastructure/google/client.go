@@ -6,8 +6,10 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	"strings"
+	log "github.com/sirupsen/logrus"
 )
 
 
@@ -85,7 +87,14 @@ func (client *Client) get(userKey string) (AwsRolesCustomSchemaDTO, error) {
 	}
 
 	err = json.Unmarshal(user.CustomSchemas["AWS_SAML"], &result)
-	return result, err
+
+	if err != nil {
+		//this property might not have been set if the user has not yet been setup with AWS
+		log.WithError(err).Warn("unable to load the AWS_SAML property on the user")
+		return result, nil
+	}
+
+	return result, nil
 }
 
 
@@ -101,6 +110,9 @@ func (client *Client) update(userKey string, awsRoles AwsRolesCustomSchemaDTO) e
 		return fmt.Errorf("unable to marshal AwsRoles: %w", err)
 	}
 
+	if user.CustomSchemas == nil {
+		user.CustomSchemas = make(map[string]googleapi.RawMessage)
+	}
 	user.CustomSchemas["AWS_SAML"] = jsonRaw
 
 	_, err = client.service.Users.Update(userKey, user).Do()
