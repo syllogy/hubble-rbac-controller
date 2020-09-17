@@ -5,16 +5,12 @@ import (
 	"strings"
 )
 
-type DatabaseGroup struct {
-	Name string
-	GrantedSchemas []*Schema
-	GrantedExternalSchemas []*ExternalSchema
-}
-
+//A redshift schema
 type Schema struct {
 	Name string
 }
 
+//An external schema references a glue database that allows the user to query the S3 data lake.
 type ExternalSchema struct {
 	Name string
 	GlueDatabaseName string
@@ -29,25 +25,35 @@ type User struct {
 	MemberOf []*Group
 }
 
+//Access is granted to groups in redshift.
 type Group struct {
 	Name     string
 }
 
 type Cluster struct {
-	Identifier string
-	Users []*User
-	Groups []*Group
-	Databases []*Database
+	Identifier string //the redshift cluster identifier
+	Users []*User //the set managed of users on this cluster
+	Groups []*Group //the set managed of groups on this cluster
+	Databases []*Database //the set managed of databases on this cluster
 }
 
+//groups are declared on cluster-level but access is granted on database level. This represents the access granted to the group on the given database.
+type DatabaseGroup struct {
+	Name string
+	GrantedSchemas []*Schema
+	GrantedExternalSchemas []*ExternalSchema
+}
+
+//a redshift database with the given name that resides on the given cluster
 type Database struct {
 	ClusterIdentifier string
 	Name string
-	Owner *string
+	Owner *string //an optional owner of the database. on a dev database the developer is set as owner.
 	Users []*DatabaseUser
 	Groups []*DatabaseGroup
 }
 
+//the complete redshift model consists of a set of managed redshift clusters
 type Model struct {
 	Clusters []*Cluster
 }

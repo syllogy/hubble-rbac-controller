@@ -1,5 +1,6 @@
 package iam
 
+//This represents an IAM policy that allows a user to log into a set of databases using the specified database username.
 type DatabaseLoginPolicy struct {
 	Email            string
 	DatabaseUsername string
@@ -11,16 +12,19 @@ type Database struct {
 	Name              string
 }
 
+//An unmanaged policy that wo want to give to the role.
 type PolicyReference struct {
 	Arn string
 }
 
+//This represents an IAM role that references the set of IAM policies.
 type AwsRole struct {
 	Name                  string
 	DatabaseLoginPolicies []*DatabaseLoginPolicy
 	Policies []*PolicyReference
 }
 
+//The complete IAM model consists of a set of managed IAM roles
 type Model struct {
 	Roles []*AwsRole
 }

@@ -12,22 +12,23 @@ type Resolver struct {
 
 }
 
-func (r *Resolver) Resolve(grant hubble.Model) (redshift.Model, iam.Model, google.Model, error) {
+//transforms the given hubble model into separate models for the 3 systems we want to reconcile
+func (r *Resolver) Resolve(model hubble.Model) (redshift.Model, iam.Model, google.Model, error) {
 
 	redshiftModel:=redshift.Model{}
 	iamModel:=iam.Model{}
 	googleModel:=google.Model{}
 
-	for _,db := range grant.Databases {
+	for _,db := range model.Databases {
 		cluster := redshiftModel.DeclareCluster(db.ClusterIdentifier)
 		cluster.DeclareDatabase(db.Name)
 	}
 
-	for _,role := range grant.Roles {
+	for _,role := range model.Roles {
 		iamModel.DeclareRole(role.Name)
 	}
 
-	for _,user := range grant.Users {
+	for _,user := range model.Users {
 
 		googleLogin := googleModel.DeclareUser(user.Email)
 
