@@ -28,7 +28,7 @@ type User struct {
 	AssignedTo []*Role
 }
 
-//If a user is assigned a role he/she/etc can log into that role from the terminal and access the granted resources.
+//If a user is assigned a role it can log into that role from the terminal and access the granted resources.
 type Role struct {
 	Name string //the name of the role
 	GrantedDatabases []*Database //the set of databases this user has access to
@@ -51,4 +51,3 @@ type Model struct {
 type PolicyReference struct {
 	Arn string
 }
-
