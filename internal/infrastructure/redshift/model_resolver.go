@@ -19,7 +19,11 @@ func NewModelResolver(clientGroup ClientGroup, excluded *redshift.Exclusions) *M
 func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshift.Cluster) error {
 
 	//TODO: find a solution that does not require hardcoding of the external schemas!
-	externalSchemas := map[string]string{"lwgoevents": "lw-go-events", "eventstreams": "eventstreams", "intercom": "intercom"}
+	externalSchemas := map[string]string{
+		"lwgoevents": "lw-go-events",
+		"eventstreams": "eventstreams",
+		"intercom": "intercom",
+		"googlesheets": "google-sheets"}
 
 	clientPool := NewClientPool(m.clientGroup)
 
