@@ -20,16 +20,16 @@ func (d *SequentialDagRunner) Run(dag *ReconciliationDag) {
 			if task.CannotRun() {
 				d.logger.Info("skipping task", "task", task.identifier)
 				task.Skip()
-			} else {
-				task.Start()
-				err := ExecuteTask(d.taskRunner, task)
-				if err != nil {
-					task.Failed()
-					d.logger.Error(err, "task failed", "task", task.String())
-				} else {
-					task.Success()
-				}
+				continue
 			}
+			task.Start()
+			err := ExecuteTask(d.taskRunner, task)
+			if err != nil {
+				task.Failed()
+				d.logger.Error(err, "task failed", "task", task.String())
+				continue
+			}
+			task.Success()
 		}
 	}
 }
