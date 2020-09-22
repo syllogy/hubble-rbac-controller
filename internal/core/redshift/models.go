@@ -32,9 +32,9 @@ type Group struct {
 
 type Cluster struct {
 	Identifier string //the redshift cluster identifier
-	Users []*User //the set managed of users on this cluster
-	Groups []*Group //the set managed of groups on this cluster
-	Databases []*Database //the set managed of databases on this cluster
+	Users []*User // set of managed users on this cluster
+	Groups []*Group // set of managed groups on this cluster
+	Databases []*Database // set of managed databases on this cluster
 }
 
 //groups are declared on cluster-level but access is granted on database level. This represents the access granted to the group on the given database.
@@ -135,7 +135,7 @@ func (c *Cluster) DeclareUser(name string, memberOf *Group) *User {
 
 func (c *Cluster) LookupGroup(name string) *Group {
 	for _,user := range c.Groups {
-		if user.Name == strings.ToLower(name)  {
+		if strings.EqualFold(user.Name, name)  {
 			return user
 		}
 	}

@@ -143,9 +143,8 @@ func (t *TaskRunnerImpl) CreateDatabase(model *redshift.DatabaseModel) error {
 			return err
 		}
 		return databaseClient.SetSchemaOwner(*model.Database.Owner, "public")
-	} else {
-		return err
 	}
+	return nil
 }
 
 func (t *TaskRunnerImpl) GrantAccess(model *redshift.GrantsModel) error {
@@ -211,5 +210,4 @@ func (t *TaskRunnerImpl) RemoveFromGroup(model *redshift.MembershipModel) error 
 	}
 	return nil
 }
-
 

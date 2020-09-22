@@ -81,7 +81,7 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 	         "Action": "redshift:GetClusterCredentials",
 	         "Resource": [
 	             "%s",
-				 "%s",
+ 	             "%s",
 	             "%s"
 	         ],
 	         "Condition": {

@@ -16,13 +16,12 @@ func (e *ErrorCollector) Register(name string) {
 func (e *ErrorCollector) Error() error {
 	if len(e.Missing) == 0 {
 		return nil
-	} else {
-		var message string
-		for _,name := range e.Missing {
-			message += fmt.Sprintf("env variable with name %s was not found, ", name)
-		}
-		return fmt.Errorf(message)
 	}
+	var message string
+	for _,name := range e.Missing {
+		message += fmt.Sprintf("env variable with name %s was not found, ", name)
+	}
+	return fmt.Errorf(message)
 }
 
 type Configuration struct {
@@ -37,12 +36,12 @@ type Configuration struct {
 }
 
 func loadVariable(name string, errorCollector *ErrorCollector) string {
-	if value, ok := os.LookupEnv(name); ok {
-		return value
-	} else {
+	value, ok := os.LookupEnv(name)
+	if !ok {
 		errorCollector.Register(name)
 		return ""
 	}
+	return value
 }
 
 func LoadConfiguration() (Configuration, error) {

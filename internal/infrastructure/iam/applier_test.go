@@ -60,19 +60,17 @@ func (client *Client) createUnmanagedPolicy(name string, document string) (*iam.
 	policy := client.lookupPolicy(policies, name)
 	if policy != nil {
 		return policy, nil
-	} else {
-		response, err := c.CreatePolicy(&iam.CreatePolicyInput{
-			Description:    aws.String(""),
-			PolicyDocument: &document,
-			PolicyName:     &name,
-		})
-
-		if err != nil {
-			return nil, fmt.Errorf("unable to create policy %s: %w", name, err)
-		}
-
-		return response.Policy, nil
 	}
+	response, err := c.CreatePolicy(&iam.CreatePolicyInput{
+		Description:    aws.String(""),
+		PolicyDocument: &document,
+		PolicyName:     &name,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to create policy %s: %w", name, err)
+	}
+
+	return response.Policy, nil
 }
 
 func setUp(t *testing.T) TestContext {

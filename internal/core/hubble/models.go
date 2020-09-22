@@ -11,7 +11,8 @@ type Database struct {
 //A developer's own personal database.
 //If a dev database has been declared for a given user and cluster, a database with a name corresponding to the user's initials will be created on the given cluster.
 type DevDatabase struct {
-	ClusterIdentifier string //the identifier of the cluster on which the database resides
+	// ClusterIdentifier is the identifier of the cluster on which the database resides.
+	ClusterIdentifier string
 }
 
 //If a glue database has been declared an "external schema" will be created in redshift that points to the glue database

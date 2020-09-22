@@ -2,7 +2,7 @@ package redshift
 
 type Exclusions struct {
 	excludedUsers   []string //excluded users will not be deleted, even if they are not mentioned in the applied model
-	excludedDatabases []string //excluded database will not have their grants managed
+	excludedDatabases []string //excluded databases will not have their grants managed
 }
 
 func NewExclusions(excludedDatabases []string, excludedUsers []string) *Exclusions {
@@ -26,4 +26,3 @@ func (m *Exclusions) IsDatabaseExcluded(name string) bool {
 	}
 	return false
 }
-

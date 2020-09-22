@@ -18,17 +18,15 @@ func (c *ClientPool) GetClusterClient(clusterIdentifier string) (*Client, error)
 
 	client, ok := c.masterClients[clusterIdentifier]
 
-	if !ok {
-		client, err := c.clientGroup.MasterDatabase(clusterIdentifier)
-
-		if err != nil {
-			return nil, err
-		}
-
-		c.masterClients[clusterIdentifier] = client
+	if ok {
 		return client, nil
 	}
+	client, err := c.clientGroup.MasterDatabase(clusterIdentifier)
+	if err != nil {
+		return nil, err
+	}
 
+	c.masterClients[clusterIdentifier] = client
 	return client, nil
 }
 
@@ -37,17 +35,15 @@ func (c *ClientPool) GetDatabaseClient(clusterIdentifier string, databaseName st
 	identifier := clusterIdentifier+"."+databaseName
 	client, ok := c.clients[identifier]
 
-	if !ok {
-		client, err := c.clientGroup.Database(clusterIdentifier, databaseName)
-
-		if err != nil {
-			return nil, err
-		}
-
-		c.clients[identifier] = client
+	if ok {
 		return client, nil
 	}
+	client, err := c.clientGroup.Database(clusterIdentifier, databaseName)
+	if err != nil {
+		return nil, err
+	}
 
+	c.clients[identifier] = client
 	return client, nil
 }
 
@@ -59,4 +55,3 @@ func (c *ClientPool) Close() {
 		client.Close()
 	}
 }
-

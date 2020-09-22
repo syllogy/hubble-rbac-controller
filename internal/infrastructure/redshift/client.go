@@ -100,14 +100,10 @@ type Row struct {
 func (c *Client) stringRows(sql string) ([]Row, error) {
 	rows, err := c.db.Query(sql)
 
-	if rows != nil {
-		defer rows.Close()
-	}
-
 	if err != nil {
 		return nil, err
 	}
-
+	defer rows.Close()
 	var result []Row
 	for rows.Next() {
 		var key string
@@ -160,9 +156,8 @@ func (c *Client) CreateDatabase(name string, owner *string) error {
 		if owner != nil {
 			_, err = c.db.Exec(fmt.Sprintf("ALTER DATABASE %s OWNER TO %s", name, *owner))
 			return err
-		} else {
-			return nil
 		}
+		return nil
 	}
 
 	if owner != nil {
