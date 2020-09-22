@@ -43,20 +43,20 @@ type ApplyEventLister interface {
 }
 
 type Applier struct {
-	accountId string
-	region string
-	client *Client
+	accountId     string
+	region        string
+	client        *Client
 	eventListener ApplyEventLister
-	logger logr.Logger
+	logger        logr.Logger
 }
 
 func NewApplier(client *Client, accountId string, region string, eventListener ApplyEventLister, logger logr.Logger) *Applier {
 	return &Applier{
-		accountId: accountId,
-		region: region,
-		client:client,
-		eventListener:eventListener,
-		logger: logger,
+		accountId:     accountId,
+		region:        region,
+		client:        client,
+		eventListener: eventListener,
+		logger:        logger,
 	}
 }
 
@@ -65,7 +65,7 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 
 	var statements []string
 
-	for _,database := range policy.Databases {
+	for _, database := range policy.Databases {
 
 		dbUserTemplate := "arn:aws:redshift:%s:%s:dbuser:%s/%s"
 		dbNameTemplate := "arn:aws:redshift:%s:%s:dbname:%s/%s"
@@ -92,7 +92,7 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 		statements = append(statements, statement)
 	}
 
-		documentTemplate := `
+	documentTemplate := `
 	{
 	 "Version": "2012-10-17",
 	 "Statement": [
@@ -106,7 +106,7 @@ func (applier *Applier) buildDatabaseLoginPolicyDocument(policy *iamCore.Databas
 }
 
 func (applier *Applier) lookupRole(roles []*iam.Role, name string) *iam.Role {
-	for _,r := range roles {
+	for _, r := range roles {
 		if *r.RoleName == name {
 			return r
 		}
@@ -115,7 +115,7 @@ func (applier *Applier) lookupRole(roles []*iam.Role, name string) *iam.Role {
 }
 
 func (applier *Applier) lookupAttachedPolicy(roles []*iam.AttachedPolicy, name string) *iam.AttachedPolicy {
-	for _,r := range roles {
+	for _, r := range roles {
 		if *r.PolicyName == name {
 			return r
 		}
@@ -169,7 +169,7 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 		return fmt.Errorf("unable to list attached policies: %w", err)
 	}
 
-	for _,desiredPolicy := range desiredRole.Policies {
+	for _, desiredPolicy := range desiredRole.Policies {
 		attachedPolicy := applier.client.lookupAttachedPolicyByArn(attachedPolicies, desiredPolicy.Arn)
 		if attachedPolicy == nil {
 			policy, err := applier.client.lookupPolicyByArn(desiredPolicy.Arn)
@@ -193,8 +193,8 @@ func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *ia
 	for _, desiredPolicy := range desiredRole.DatabaseLoginPolicies {
 
 		desiredPolicyDocument := applier.buildDatabaseLoginPolicyDocument(desiredPolicy)
-		policyName :=  desiredPolicy.DatabaseUsername
-		attachedPolicy := applier.client.lookupAttachedPolicy(attachedPolicies,policyName)
+		policyName := desiredPolicy.DatabaseUsername
+		attachedPolicy := applier.client.lookupAttachedPolicy(attachedPolicies, policyName)
 
 		if len(desiredPolicy.Databases) == 0 {
 			if attachedPolicy != nil {

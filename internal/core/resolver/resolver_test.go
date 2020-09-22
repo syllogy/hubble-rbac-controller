@@ -37,34 +37,33 @@ func generateTestData() TestData {
 	allowAccessToTmpBucketPolicy := hubble.PolicyReference{Arn: "arn:aws:iam::478824949770:allowAccessToTmpBucketPolicy/access-to-tmp-bucket"}
 
 	biAnalystRole := hubble.Role{
-		Name:"bi_analyst",
-		GrantedDatabases:[]*hubble.Database{&unstable},
-		GrantedDevDatabases:[]*hubble.DevDatabase{},
-		GrantedGlueDatabases:[]*hubble.GlueDatabase{},
-		Acl:[]hubble.DataSet{"bi", "core"},
+		Name:                 "bi_analyst",
+		GrantedDatabases:     []*hubble.Database{&unstable},
+		GrantedDevDatabases:  []*hubble.DevDatabase{},
+		GrantedGlueDatabases: []*hubble.GlueDatabase{},
+		Acl:                  []hubble.DataSet{"bi", "core"},
 	}
 
 	dbtDeveloperRole := hubble.Role{
-		Name:"dbt_developer",
-		GrantedDatabases:[]*hubble.Database{&unstable},
-		GrantedDevDatabases:[]*hubble.DevDatabase{&dev},
-		GrantedGlueDatabases:[]*hubble.GlueDatabase{},
-		Acl:[]hubble.DataSet{"bi", "core"},
-		Policies: []*hubble.PolicyReference{&allowAccessToTmpBucketPolicy},
+		Name:                 "dbt_developer",
+		GrantedDatabases:     []*hubble.Database{&unstable},
+		GrantedDevDatabases:  []*hubble.DevDatabase{&dev},
+		GrantedGlueDatabases: []*hubble.GlueDatabase{},
+		Acl:                  []hubble.DataSet{"bi", "core"},
+		Policies:             []*hubble.PolicyReference{&allowAccessToTmpBucketPolicy},
 	}
 
 	biAnalyst := hubble.User{
-		Username:"jwr",
-		Email:"jwr@lunar.app",
-		AssignedTo:[]*hubble.Role{&biAnalystRole},
+		Username:   "jwr",
+		Email:      "jwr@lunar.app",
+		AssignedTo: []*hubble.Role{&biAnalystRole},
 	}
 
 	dbtDeveloper := hubble.User{
-		Username:"nra",
-		Email:"nra@lunar.app",
-		AssignedTo:[]*hubble.Role{&dbtDeveloperRole},
+		Username:   "nra",
+		Email:      "nra@lunar.app",
+		AssignedTo: []*hubble.Role{&dbtDeveloperRole},
 	}
-
 
 	return TestData{
 		unstable:                     unstable,
@@ -85,11 +84,11 @@ func Test_DbtDeveloper(t *testing.T) {
 	data := generateTestData()
 
 	model := hubble.Model{
-		Databases: []*hubble.Database{&data.unstable},
+		Databases:    []*hubble.Database{&data.unstable},
 		DevDatabases: []*hubble.DevDatabase{&data.dev},
-		Users:         []*hubble.User{&data.dbtDeveloper},
-		Roles:         []*hubble.Role{&data.dbtDeveloperRole},
-		Policies: []*hubble.PolicyReference{&data.allowAccessToTmpBucketPolicy},
+		Users:        []*hubble.User{&data.dbtDeveloper},
+		Roles:        []*hubble.Role{&data.dbtDeveloperRole},
+		Policies:     []*hubble.PolicyReference{&data.allowAccessToTmpBucketPolicy},
 	}
 
 	resolver := Resolver{}
@@ -136,10 +135,10 @@ func Test_BiAnalyst(t *testing.T) {
 	data := generateTestData()
 
 	model := hubble.Model{
-		Databases: []*hubble.Database{&data.unstable},
+		Databases:    []*hubble.Database{&data.unstable},
 		DevDatabases: []*hubble.DevDatabase{},
-		Users:         []*hubble.User{&data.biAnalyst},
-		Roles:         []*hubble.Role{&data.biAnalystRole},
+		Users:        []*hubble.User{&data.biAnalyst},
+		Roles:        []*hubble.Role{&data.biAnalystRole},
 	}
 
 	resolver := Resolver{}
@@ -153,7 +152,7 @@ func Test_BiAnalyst(t *testing.T) {
 
 	group := database.LookupGroup(data.biAnalystRole.Name)
 	assert.NotNil(group, "a user group with the name of the role has been registered")
-	assert.Contains(group.Granted(),"bi", "group has been granted access to the expected schemas")
+	assert.Contains(group.Granted(), "bi", "group has been granted access to the expected schemas")
 
 	dbUser := database.LookupUser(dbUsername)
 	assert.NotNil(dbUser, "a user name of the role and user has been registered")

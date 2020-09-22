@@ -6,7 +6,7 @@ type Excluder interface {
 }
 
 type Exclusions struct {
-	excludedUsers   []string //excluded users will not be deleted, even if they are not mentioned in the applied model
+	excludedUsers     []string //excluded users will not be deleted, even if they are not mentioned in the applied model
 	excludedDatabases []string //excluded databases will not have their grants managed
 }
 
@@ -15,7 +15,7 @@ func NewExclusions(excludedDatabases []string, excludedUsers []string) *Exclusio
 }
 
 func (m *Exclusions) IsUserExcluded(username string) bool {
-	for _,unmanagedUser := range m.excludedUsers {
+	for _, unmanagedUser := range m.excludedUsers {
 		if unmanagedUser == username {
 			return true
 		}

@@ -9,7 +9,7 @@ type ReconcilerConfig struct {
 }
 
 func DefaultReconcilerConfig() ReconcilerConfig {
-	return ReconcilerConfig {RevokeAccessToPublicSchema:true}
+	return ReconcilerConfig{RevokeAccessToPublicSchema: true}
 }
 
 // The Reconciler knows how to reconcile two different instances of the redshift.Model.
@@ -17,10 +17,10 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 // It is nondestructive with regards to data. This means it will never drop a database, a schema or table,
 // but it will drop groups, users etc.
 type Reconciler struct {
-	config ReconcilerConfig
+	config  ReconcilerConfig
 	current *Model
 	desired *Model
-	tasks []*Task
+	tasks   []*Task
 }
 
 // Reconciles the two models.
@@ -33,7 +33,7 @@ type Reconciler struct {
 // would otherwise be coupled to the task interdependencies (the order of the function calls in the code would have to respect the dependencies)
 func Reconcile(current *Model, desired *Model, config ReconcilerConfig) *ReconciliationDag {
 
-	d := &Reconciler{current:current, desired:desired, config: config}
+	d := &Reconciler{current: current, desired: desired, config: config}
 
 	for _, currentCluster := range d.current.Clusters {
 		desiredCluster := d.desired.LookupCluster(currentCluster.Identifier)
@@ -221,7 +221,6 @@ func (d *Reconciler) add(task *Task) *Task {
 	return existing
 }
 
-
 func (d *Reconciler) lookupAddToGroupTasks(clusterIdentifier string, groupName string) []*Task {
 	var result []*Task
 	for _, task := range d.tasks {
@@ -279,12 +278,10 @@ func (d *Reconciler) lookupCreateDatabaseTask(clusterIdentifier string, name str
 	return nil
 }
 
-
-
 func (d *Reconciler) createUser(clusterIdentifier string, user *User) {
 
 	createUserTask := d.add(newCreateUserTask(clusterIdentifier, user))
-	addToGroupTask := d.add(newAddToGroupTask(clusterIdentifier,user, user.Role()))
+	addToGroupTask := d.add(newAddToGroupTask(clusterIdentifier, user, user.Role()))
 	addToGroupTask.dependsOn(createUserTask)
 
 	createGroupTask := d.lookupCreateGroupTask(clusterIdentifier, user.Role().Name)

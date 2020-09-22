@@ -69,37 +69,37 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	actual := FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst"},
+		Users:            []string{"lunarway", "jwr_bianalyst"},
 		Groups:           []string{"bianalyst"},
 		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public"}},
 	}, "")
 
 	//Grant access to "bi"
-	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "bi" })
+	biDatabaseGroup.GrantSchema(&redshift.Schema{Name: "bi"})
 
 	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst"},
+		Users:            []string{"lunarway", "jwr_bianalyst"},
 		Groups:           []string{"bianalyst"},
-		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public", "bi"}},
 	}, "")
 
 	//Grant access to "test"
-	biDatabaseGroup.GrantSchema(&redshift.Schema{ Name: "test" })
+	biDatabaseGroup.GrantSchema(&redshift.Schema{Name: "test"})
 
 	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst"},
+		Users:            []string{"lunarway", "jwr_bianalyst"},
 		Groups:           []string{"bianalyst"},
-		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}},
 	}, "")
 
@@ -112,16 +112,16 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	actual = FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst","nra_bianalyst"},
+		Users:            []string{"lunarway", "jwr_bianalyst", "nra_bianalyst"},
 		Groups:           []string{"bianalyst"},
-		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}},
 	}, "")
 
 	//Add an AML user
 	amlGroup := cluster.DeclareGroup("aml")
 	amlDatabaseGroup := database.DeclareGroup("aml")
-	amlDatabaseGroup.GrantExternalSchema(&redshift.ExternalSchema{ Name: "lwgoevents", GlueDatabaseName: "lwgoevents" })
+	amlDatabaseGroup.GrantExternalSchema(&redshift.ExternalSchema{Name: "lwgoevents", GlueDatabaseName: "lwgoevents"})
 	cluster.DeclareUser("jwr_aml", amlGroup)
 	database.DeclareUser("jwr_aml")
 
@@ -130,10 +130,10 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	actual = FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst","nra_bianalyst", "jwr_aml"},
+		Users:            []string{"lunarway", "jwr_bianalyst", "nra_bianalyst", "jwr_aml"},
 		Groups:           []string{"bianalyst", "aml"},
-		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}, "jwr_aml": {"aml"}},
-		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}, "aml": {"public","lwgoevents"}},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}, "jwr_aml": {"aml"}},
+		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}, "aml": {"public", "lwgoevents"}},
 	}, "")
 }
 
@@ -151,7 +151,7 @@ func TestApplier_FailsOnExcludedUser(t *testing.T) {
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")
 	biGroup := cluster.DeclareGroup("bianalyst")
-	database := cluster.DeclareDatabase( "jwr")
+	database := cluster.DeclareDatabase("jwr")
 	database.DeclareGroup("bianalyst")
 	cluster.DeclareUser("lunarway", biGroup)
 	database.DeclareUser("lunarway")

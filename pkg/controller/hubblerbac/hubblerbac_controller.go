@@ -26,7 +26,6 @@ import (
 
 var log = logf.Log.WithName("controller_hubblerbac")
 
-
 func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 
 	excludedUsers := []string{
@@ -52,8 +51,8 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 	clientGroup := redshift.NewClientGroup(&redshiftCredentials)
 
 	//for some reason revoking access to the public schema in Redshift has no effect, so every reconcile would try to revoke access to all public schemas (so we skip it)
-	config := redshiftCore.ReconcilerConfig{RevokeAccessToPublicSchema:false}
-	redshiftApplier := redshift.NewApplier(clientGroup,  redshiftCore.NewExclusions(excludedDatabases, excludedUsers), conf.AwsAccountId, log, config)
+	config := redshiftCore.ReconcilerConfig{RevokeAccessToPublicSchema: false}
+	redshiftApplier := redshift.NewApplier(clientGroup, redshiftCore.NewExclusions(excludedDatabases, excludedUsers), conf.AwsAccountId, log, config)
 
 	session := iam.AwsSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)
@@ -118,8 +117,8 @@ var _ reconcile.Reconciler = &ReconcileHubbleRbac{}
 type ReconcileHubbleRbac struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
+	client  client.Client
+	scheme  *runtime.Scheme
 	applier *service.Applier
 }
 
@@ -161,7 +160,7 @@ func (r *ReconcileHubbleRbac) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, nil //don't reschedule, if we can't construct the hubble model from the CR it is a permanent problem
 	}
 
-	err = r.applier.Apply(model,false)
+	err = r.applier.Apply(model, false)
 	if err != nil {
 		r.setStatusFailed(instance, err, reqLogger)
 		return reconcile.Result{}, err

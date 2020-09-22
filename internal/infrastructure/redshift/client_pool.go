@@ -1,16 +1,16 @@
 package redshift
 
 type ClientPool struct {
-	clientGroup ClientGroup
+	clientGroup   ClientGroup
 	masterClients map[string]*Client
-	clients map[string]*Client
+	clients       map[string]*Client
 }
 
 func NewClientPool(clientGroup ClientGroup) *ClientPool {
 	return &ClientPool{
-		clientGroup: clientGroup,
-		masterClients:make(map[string]*Client),
-		clients:make(map[string]*Client),
+		clientGroup:   clientGroup,
+		masterClients: make(map[string]*Client),
+		clients:       make(map[string]*Client),
 	}
 }
 
@@ -32,7 +32,7 @@ func (c *ClientPool) GetClusterClient(clusterIdentifier string) (*Client, error)
 
 func (c *ClientPool) GetDatabaseClient(clusterIdentifier string, databaseName string) (*Client, error) {
 
-	identifier := clusterIdentifier+"."+databaseName
+	identifier := clusterIdentifier + "." + databaseName
 	client, ok := c.clients[identifier]
 
 	if ok {

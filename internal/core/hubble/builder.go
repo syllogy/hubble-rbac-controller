@@ -2,8 +2,8 @@ package hubble
 
 func (m *Model) AddUser(username string, email string) *User {
 	user := User{
-		Username: username,
-		Email: email,
+		Username:   username,
+		Email:      email,
 		AssignedTo: []*Role{},
 	}
 	m.Users = append(m.Users, &user)
@@ -13,11 +13,11 @@ func (m *Model) AddUser(username string, email string) *User {
 
 func (m *Model) AddRole(name string, acl []DataSet) *Role {
 	role := Role{
-		Name: name,
-		Acl: acl,
-		Policies: []*PolicyReference{},
-		GrantedDatabases: []*Database{},
-		GrantedDevDatabases: []*DevDatabase{},
+		Name:                 name,
+		Acl:                  acl,
+		Policies:             []*PolicyReference{},
+		GrantedDatabases:     []*Database{},
+		GrantedDevDatabases:  []*DevDatabase{},
 		GrantedGlueDatabases: []*GlueDatabase{},
 	}
 	m.Roles = append(m.Roles, &role)
@@ -27,7 +27,7 @@ func (m *Model) AddRole(name string, acl []DataSet) *Role {
 
 func (m *Model) AddDatabase(clusterIdentifier string, name string) *Database {
 	database := Database{
-		Name: name,
+		Name:              name,
 		ClusterIdentifier: clusterIdentifier,
 	}
 	m.Databases = append(m.Databases, &database)
@@ -61,7 +61,7 @@ func (r *Role) RevokeAccess(database *Database) {
 
 	var newDatabaseList []*Database
 
-	for _,db := range r.GrantedDatabases {
+	for _, db := range r.GrantedDatabases {
 		if db.Name != database.Name {
 			newDatabaseList = append(newDatabaseList, db)
 		}
@@ -69,7 +69,6 @@ func (r *Role) RevokeAccess(database *Database) {
 
 	r.GrantedDatabases = newDatabaseList
 }
-
 
 func (u *User) Assign(role *Role) {
 	u.AssignedTo = append(u.AssignedTo, role)

@@ -9,41 +9,41 @@ import (
 
 // HubbleRbacSpec defines the desired state of HubbleRbac
 type HubbleRbacSpec struct {
-	Users []User `json:"users"`
-	Roles []Role `json:"roles"`
-	Policies []PolicyReference `json:"policies"`
-	Databases []Database `json:"databases"`
+	Users        []User              `json:"users"`
+	Roles        []Role              `json:"roles"`
+	Policies     []PolicyReference   `json:"policies"`
+	Databases    []Database          `json:"databases"`
 	DevDatabases []DeveloperDatabase `json:"devDatabases"`
 }
 
 type User struct {
-	Name string `json:"name"`
-	Email string `json:"email"`
+	Name  string   `json:"name"`
+	Email string   `json:"email"`
 	Roles []string `json:"roles"`
 }
 
 type Role struct {
-	Name string `json:"name"`
-	Databases []string `json:"databases"`
-	DevDatabases []string `json:"devDatabases"`
-	DatalakeGrants []string `json:"datalakeGrants"`
+	Name                string   `json:"name"`
+	Databases           []string `json:"databases"`
+	DevDatabases        []string `json:"devDatabases"`
+	DatalakeGrants      []string `json:"datalakeGrants"`
 	DatawarehouseGrants []string `json:"datawarehouseGrants"`
-	Policies []string `json:"policies"`
+	Policies            []string `json:"policies"`
 }
 
 type PolicyReference struct {
 	Name string `json:"name"`
-	Arn string `json:"arn"`
+	Arn  string `json:"arn"`
 }
 
 type DeveloperDatabase struct {
-	Name string `json:"name"`
+	Name    string `json:"name"`
 	Cluster string `json:"cluster"`
 }
 
 type Database struct {
-	Name string `json:"name"`
-	Cluster string `json:"cluster"`
+	Name     string `json:"name"`
+	Cluster  string `json:"cluster"`
 	Database string `json:"database"`
 }
 

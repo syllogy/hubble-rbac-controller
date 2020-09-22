@@ -53,7 +53,7 @@ type TaskPrinter struct {
 }
 
 func NewTaskPrinter(logger logr.Logger) *TaskPrinter {
-	return &TaskPrinter{logger:logger}
+	return &TaskPrinter{logger: logger}
 }
 
 func (t *TaskPrinter) CreateUser(model *UserModel) error {
@@ -100,4 +100,3 @@ func (t *TaskPrinter) RemoveFromGroup(model *MembershipModel) error {
 	t.logger.Info("RemoveFromGroup", "clusterIdentifier", model.ClusterIdentifier, "username", model.Username, "groupName", model.GroupName)
 	return nil
 }
-

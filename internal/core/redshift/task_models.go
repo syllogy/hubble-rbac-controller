@@ -124,4 +124,3 @@ func (s *ExternalSchemaModel) Equals(rhs Equatable) bool {
 		s.Database.Name == other.Database.Name &&
 		s.Schema.Name == other.Schema.Name
 }
-

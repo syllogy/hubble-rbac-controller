@@ -14,7 +14,7 @@ func NewApplier(client *Client) *Applier {
 }
 
 func (applier *Applier) userByEmail(users []User, email string) *User {
-	for _,user := range users {
+	for _, user := range users {
 		if user.email == email {
 			return &user
 		}
@@ -30,7 +30,7 @@ func (applier *Applier) Apply(model googleCore.Model) error {
 		return fmt.Errorf("Unable to retrieve users: %w", err)
 	}
 
-	for _,user := range model.Users {
+	for _, user := range model.Users {
 		googleUser := applier.userByEmail(googleUsers, user.Email)
 
 		if googleUser != nil {

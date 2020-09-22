@@ -12,12 +12,12 @@ type Schema struct {
 
 //An external schema references a glue database that allows the user to query the S3 data lake.
 type ExternalSchema struct {
-	Name string
+	Name             string
 	GlueDatabaseName string
 }
 
 type DatabaseUser struct {
-	Name     string
+	Name string
 }
 
 type User struct {
@@ -27,30 +27,30 @@ type User struct {
 
 //Access is granted to groups in redshift.
 type Group struct {
-	Name     string
+	Name string
 }
 
 type Cluster struct {
-	Identifier string //the redshift cluster identifier
-	Users []*User // set of managed users on this cluster
-	Groups []*Group // set of managed groups on this cluster
-	Databases []*Database // set of managed databases on this cluster
+	Identifier string      //the redshift cluster identifier
+	Users      []*User     // set of managed users on this cluster
+	Groups     []*Group    // set of managed groups on this cluster
+	Databases  []*Database // set of managed databases on this cluster
 }
 
 //groups are declared on cluster-level but access is granted on database level. This represents the access granted to the group on the given database.
 type DatabaseGroup struct {
-	Name string
-	GrantedSchemas []*Schema
+	Name                   string
+	GrantedSchemas         []*Schema
 	GrantedExternalSchemas []*ExternalSchema
 }
 
 //a redshift database with the given name that resides on the given cluster
 type Database struct {
 	ClusterIdentifier string
-	Name string
-	Owner *string //an optional owner of the database. on a dev database the developer is set as owner.
-	Users []*DatabaseUser
-	Groups []*DatabaseGroup
+	Name              string
+	Owner             *string //an optional owner of the database. on a dev database the developer is set as owner.
+	Users             []*DatabaseUser
+	Groups            []*DatabaseGroup
 }
 
 //the complete redshift model consists of a set of managed redshift clusters
@@ -59,7 +59,7 @@ type Model struct {
 }
 
 func (m *Model) Validate(excluded *Exclusions) error {
-	for _,cluster := range m.Clusters {
+	for _, cluster := range m.Clusters {
 		err := cluster.Validate(excluded)
 
 		if err != nil {
@@ -95,7 +95,7 @@ func (c *Cluster) Validate(excluded Excluder) error {
 }
 
 func (m *Model) LookupCluster(identifier string) *Cluster {
-	for _,cluster := range m.Clusters {
+	for _, cluster := range m.Clusters {
 		if cluster.Identifier == identifier {
 			return cluster
 		}
@@ -109,13 +109,13 @@ func (m *Model) DeclareCluster(identifier string) *Cluster {
 		return existing
 	}
 
-	newCluster := &Cluster { Identifier: identifier, Databases: []*Database{}, Users: []*User{} }
+	newCluster := &Cluster{Identifier: identifier, Databases: []*Database{}, Users: []*User{}}
 	m.Clusters = append(m.Clusters, newCluster)
 	return newCluster
 }
 
 func (c *Cluster) LookupUser(username string) *User {
-	for _,user := range c.Users {
+	for _, user := range c.Users {
 		if user.Name == username {
 			return user
 		}
@@ -129,14 +129,14 @@ func (c *Cluster) DeclareUser(name string, memberOf *Group) *User {
 		return existing
 	}
 
-	newUser := &User{ Name: strings.ToLower(name), MemberOf: []*Group{memberOf} }
+	newUser := &User{Name: strings.ToLower(name), MemberOf: []*Group{memberOf}}
 	c.Users = append(c.Users, newUser)
 	return newUser
 }
 
 func (c *Cluster) LookupGroup(name string) *Group {
-	for _,user := range c.Groups {
-		if strings.EqualFold(user.Name, name)  {
+	for _, user := range c.Groups {
+		if strings.EqualFold(user.Name, name) {
 			return user
 		}
 	}
@@ -149,14 +149,13 @@ func (c *Cluster) DeclareGroup(name string) *Group {
 		return existing
 	}
 
-	newGroup := &Group{ Name: strings.ToLower(name) }
+	newGroup := &Group{Name: strings.ToLower(name)}
 	c.Groups = append(c.Groups, newGroup)
 	return newGroup
 }
 
-
 func (c *Cluster) LookupDatabase(name string) *Database {
-	for _,db := range c.Databases {
+	for _, db := range c.Databases {
 		if strings.EqualFold(db.Name, name) {
 			return db
 		}
@@ -174,18 +173,18 @@ func (c *Cluster) DeclareDatabaseWithOwner(name string, owner string) *Database 
 }
 
 func (c *Cluster) declareDatabase(name string, owner *string) *Database {
-	existing := c.LookupDatabase( name)
+	existing := c.LookupDatabase(name)
 	if existing != nil {
 		return existing
 	}
 
-	newDatabase := &Database { ClusterIdentifier: c.Identifier, Name: strings.ToLower(name), Owner: owner }
+	newDatabase := &Database{ClusterIdentifier: c.Identifier, Name: strings.ToLower(name), Owner: owner}
 	c.Databases = append(c.Databases, newDatabase)
 	return newDatabase
 }
 
 func (d *Database) LookupGroup(name string) *DatabaseGroup {
-	for _,group := range d.Groups {
+	for _, group := range d.Groups {
 		if strings.EqualFold(group.Name, name) {
 			return group
 		}
@@ -199,7 +198,7 @@ func (d *Database) DeclareGroup(name string) *DatabaseGroup {
 		return existing
 	}
 
-	newGroup := &DatabaseGroup{ Name: strings.ToLower(name) }
+	newGroup := &DatabaseGroup{Name: strings.ToLower(name)}
 	d.Groups = append(d.Groups, newGroup)
 	return newGroup
 }
@@ -219,7 +218,7 @@ func (d *Database) DeclareUser(name string) *DatabaseUser {
 		return existing
 	}
 
-	newUser := &DatabaseUser{ Name: strings.ToLower(name) }
+	newUser := &DatabaseUser{Name: strings.ToLower(name)}
 	d.Users = append(d.Users, newUser)
 	return newUser
 }
@@ -242,9 +241,8 @@ func (g *DatabaseGroup) GrantExternalSchema(schema *ExternalSchema) {
 	}
 }
 
-
 func (g *DatabaseGroup) Granted() []string {
-	schemas := make([]string, 0, len(g.GrantedSchemas) + len(g.GrantedExternalSchemas))
+	schemas := make([]string, 0, len(g.GrantedSchemas)+len(g.GrantedExternalSchemas))
 	for _, schema := range g.GrantedSchemas {
 		schemas = append(schemas, strings.ToLower(schema.Name))
 	}

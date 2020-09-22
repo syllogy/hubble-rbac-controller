@@ -9,13 +9,13 @@ import (
 )
 
 type TaskRunnerImpl struct {
-	clientPool *ClientPool
+	clientPool   *ClientPool
 	awsAccountId string
-	log logr.Logger
+	log          logr.Logger
 }
 
 func NewTaskRunnerImpl(clientPool *ClientPool, awsAccountId string, logger logr.Logger) *TaskRunnerImpl {
-	return &TaskRunnerImpl{clientPool:clientPool, awsAccountId: awsAccountId, log: logger}
+	return &TaskRunnerImpl{clientPool: clientPool, awsAccountId: awsAccountId, log: logger}
 }
 
 func (t *TaskRunnerImpl) CreateUser(model *redshift.UserModel) error {
@@ -35,7 +35,7 @@ func (t *TaskRunnerImpl) CreateUser(model *redshift.UserModel) error {
 }
 
 func (t *TaskRunnerImpl) DropUser(model *redshift.UserModel) error {
-	t.log.Info(fmt.Sprintf("DropUser (%s) %s", model.ClusterIdentifier,model.User.Name))
+	t.log.Info(fmt.Sprintf("DropUser (%s) %s", model.ClusterIdentifier, model.User.Name))
 
 	client, err := t.clientPool.GetClusterClient(model.ClusterIdentifier)
 
@@ -55,7 +55,7 @@ func (t *TaskRunnerImpl) DropUser(model *redshift.UserModel) error {
 }
 
 func (t *TaskRunnerImpl) CreateGroup(model *redshift.GroupModel) error {
-	t.log.Info(fmt.Sprintf("CreateGroup (%s) %s", model.ClusterIdentifier,model.Group.Name))
+	t.log.Info(fmt.Sprintf("CreateGroup (%s) %s", model.ClusterIdentifier, model.Group.Name))
 
 	client, err := t.clientPool.GetClusterClient(model.ClusterIdentifier)
 
@@ -73,7 +73,7 @@ func (t *TaskRunnerImpl) CreateGroup(model *redshift.GroupModel) error {
 }
 
 func (t *TaskRunnerImpl) DropGroup(model *redshift.GroupModel) error {
-	t.log.Info(fmt.Sprintf("DropGroup (%s) %s", model.ClusterIdentifier,model.Group.Name))
+	t.log.Info(fmt.Sprintf("DropGroup (%s) %s", model.ClusterIdentifier, model.Group.Name))
 
 	client, err := t.clientPool.GetClusterClient(model.ClusterIdentifier)
 
@@ -210,4 +210,3 @@ func (t *TaskRunnerImpl) RemoveFromGroup(model *redshift.MembershipModel) error 
 	}
 	return nil
 }
-

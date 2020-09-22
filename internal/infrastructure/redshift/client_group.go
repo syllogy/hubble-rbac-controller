@@ -24,7 +24,7 @@ type ClientGroup interface {
 }
 
 type ClientGroupSharedCredentials struct {
-	credentials *ClusterCredentials
+	credentials  *ClusterCredentials
 	hostResolver HostResolver
 }
 
@@ -67,4 +67,3 @@ func (cg ClientGroupSharedCredentials) Database(clusterIdentifier string, databa
 
 	return NewClient(credentials.Username, credentials.Password, cg.hostResolver(clusterIdentifier), databaseName, credentials.Sslmode, credentials.Port, credentials.ExternalSchemasSupported)
 }
-

@@ -7,7 +7,6 @@ import (
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
 )
 
-
 type IamEventRecorder struct {
 	logger logr.Logger
 }
@@ -17,15 +16,15 @@ func (e *IamEventRecorder) Handle(eventType iam.ApplyEventType, name string) {
 }
 
 func NewIamLogger(logger logr.Logger) *IamEventRecorder {
-	return &IamEventRecorder{logger:logger}
+	return &IamEventRecorder{logger: logger}
 }
 
 type Applier struct {
-	resolver *resolver.Resolver
-	googleApplier GoogleApplier
+	resolver        *resolver.Resolver
+	googleApplier   GoogleApplier
 	redshiftApplier RedshiftApplier
-	iamApplier *iam.Applier
-	logger logr.Logger
+	iamApplier      *iam.Applier
+	logger          logr.Logger
 }
 
 func NewApplier(
@@ -35,14 +34,13 @@ func NewApplier(
 	logger logr.Logger) *Applier {
 
 	return &Applier{
-		resolver: &resolver.Resolver{},
+		resolver:        &resolver.Resolver{},
 		redshiftApplier: redshiftApplier,
-		iamApplier: iamApplier,
-		googleApplier: googleApplier,
-		logger: logger,
+		iamApplier:      iamApplier,
+		googleApplier:   googleApplier,
+		logger:          logger,
 	}
 }
-
 
 func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 

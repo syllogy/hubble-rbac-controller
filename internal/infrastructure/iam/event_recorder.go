@@ -1,6 +1,5 @@
 package iam
 
-
 type EventRecorder struct {
 	events []ApplyEventType
 }

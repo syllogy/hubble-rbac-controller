@@ -2,8 +2,8 @@ package hubblerbac
 
 import (
 	"fmt"
-	lunarwayv1alpha1 "github.com/lunarway/hubble-rbac-controller/pkg/apis/lunarway/v1alpha1"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
+	lunarwayv1alpha1 "github.com/lunarway/hubble-rbac-controller/pkg/apis/lunarway/v1alpha1"
 	"strings"
 )
 
@@ -17,11 +17,11 @@ func buildHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) 
 	datalakeGrantsMap := make(map[string]*hubble.GlueDatabase)
 	roleMap := make(map[string]*hubble.Role)
 
-	for _,database := range  users.Spec.Databases {
+	for _, database := range users.Spec.Databases {
 		databaseMap[database.Name] = model.AddDatabase(database.Cluster, database.Database)
 	}
 
-	for _,database := range users.Spec.DevDatabases {
+	for _, database := range users.Spec.DevDatabases {
 		devDatabaseMap[database.Name] = model.AddDevDatabase(database.Cluster)
 	}
 
@@ -93,7 +93,7 @@ func buildHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) 
 	for _, user := range users.Spec.Users {
 		a := model.AddUser(user.Name, user.Email)
 
-		for _,r := range user.Roles {
+		for _, r := range user.Roles {
 			role, ok := roleMap[r]
 			if !ok {
 				return model, fmt.Errorf("no such role: %s", r)
@@ -104,4 +104,3 @@ func buildHubbleModel(users *lunarwayv1alpha1.HubbleRbac) (hubble.Model, error) 
 
 	return model, nil
 }
-

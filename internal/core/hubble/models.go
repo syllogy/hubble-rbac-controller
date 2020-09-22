@@ -5,7 +5,7 @@ type DataSet string
 
 type Database struct {
 	ClusterIdentifier string //the identifier of the cluster on which the database resides
-	Name string
+	Name              string
 }
 
 //A developer's own personal database.
@@ -19,33 +19,34 @@ type DevDatabase struct {
 //A glue database can be used to query the S3 data lake from redshift/athena/etc.
 type GlueDatabase struct {
 	ShortName string //the name of the external schema in redshift
-	Name string //the name of database in AWS Glue
+	Name      string //the name of database in AWS Glue
 }
+
 //TODO: as we should keep the hubble model technology agnostic we should remove the "Glue" part of this type name.
 
 type User struct {
-	Username string
-	Email string
+	Username   string
+	Email      string
 	AssignedTo []*Role
 }
 
 //If a user is assigned a role it can log into that role from the terminal and access the granted resources.
 type Role struct {
-	Name string //the name of the role
-	GrantedDatabases []*Database //the set of databases this user has access to
-	GrantedDevDatabases []*DevDatabase //the set of dev databases that this user has access to
-	GrantedGlueDatabases []*GlueDatabase //the set of glue databases this user has access to
-	Acl []DataSet //the set of data groups this user has access to. E.g. a credit analyst should only have access to credit related data.
-	Policies []*PolicyReference //the set of extra IAM policies this user has access to. Those could be policies required by the CLI's that are part of the analyst tool chain.
+	Name                 string             //the name of the role
+	GrantedDatabases     []*Database        //the set of databases this user has access to
+	GrantedDevDatabases  []*DevDatabase     //the set of dev databases that this user has access to
+	GrantedGlueDatabases []*GlueDatabase    //the set of glue databases this user has access to
+	Acl                  []DataSet          //the set of data groups this user has access to. E.g. a credit analyst should only have access to credit related data.
+	Policies             []*PolicyReference //the set of extra IAM policies this user has access to. Those could be policies required by the CLI's that are part of the analyst tool chain.
 }
 
 //the complete Hubble model which contains all the resources that are managed by the controller.
 type Model struct {
-	Databases []*Database
+	Databases    []*Database
 	DevDatabases []*DevDatabase
-	Users []*User
-	Roles []*Role
-	Policies []*PolicyReference
+	Users        []*User
+	Roles        []*Role
+	Policies     []*PolicyReference
 }
 
 //A reference to an unmanaged IAM policy

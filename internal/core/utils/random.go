@@ -11,7 +11,6 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-
 func GenerateRandomString(n int) string {
 	b := make([]rune, n)
 	for i := range b {
@@ -19,4 +18,3 @@ func GenerateRandomString(n int) string {
 	}
 	return string(b)
 }
-

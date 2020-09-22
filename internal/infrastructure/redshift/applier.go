@@ -8,19 +8,19 @@ import (
 
 type Applier struct {
 	reconcilerConfig redshiftCore.ReconcilerConfig
-	clientGroup     ClientGroup
-	excluded *redshiftCore.Exclusions
-	awsAccountId    string
-	logger logr.Logger
+	clientGroup      ClientGroup
+	excluded         *redshiftCore.Exclusions
+	awsAccountId     string
+	logger           logr.Logger
 }
 
 func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshiftCore.ReconcilerConfig) *Applier {
 	return &Applier{
-		clientGroup:     clientGroup,
-		reconcilerConfig:reconcilerConfig,
-		excluded: excluded,
-		awsAccountId:    awsAccountId,
-		logger: logger,
+		clientGroup:      clientGroup,
+		reconcilerConfig: reconcilerConfig,
+		excluded:         excluded,
+		awsAccountId:     awsAccountId,
+		logger:           logger,
 	}
 }
 
@@ -73,4 +73,3 @@ func (applier *Applier) Apply(model redshiftCore.Model, dryRun bool) error {
 
 	return nil
 }
-

@@ -3,35 +3,33 @@ package google
 import (
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	"strings"
-	log "github.com/sirupsen/logrus"
 )
 
-
 type AwsRoleCustomSchemaDTO struct {
-	Type string `json:"type"`
+	Type  string `json:"type"`
 	Value string `json:"value"`
 }
 
 type AwsRolesCustomSchemaDTO struct {
-	Roles []AwsRoleCustomSchemaDTO `json:"IAM_Role"`
-	SessionDuration int            `json:"SessionDuration"`
+	Roles           []AwsRoleCustomSchemaDTO `json:"IAM_Role"`
+	SessionDuration int                      `json:"SessionDuration"`
 }
 
 type User struct {
-	Id string
+	Id    string
 	email string
 }
 
 func (r AwsRoleCustomSchemaDTO) isManaged() bool {
 	return strings.Contains(r.Value, "/hubble-rbac/")
 }
-
 
 // Build and returns an Admin SDK Directory service object authorized with
 // the service accounts that act on behalf of the given user.
@@ -57,9 +55,8 @@ func createDirectoryService(jsonKey []byte, userEmail string) (*admin.Service, e
 	return srv, nil
 }
 
-
 type Client struct {
-	service *admin.Service
+	service      *admin.Service
 	awsAccountId string
 }
 
@@ -72,7 +69,7 @@ func NewGoogleClient(jsonKey []byte, principalEmail string, awsAccountId string)
 	}
 
 	return &Client{
-		service:service,
+		service:      service,
 		awsAccountId: awsAccountId,
 	}, nil
 }
@@ -97,7 +94,6 @@ func (client *Client) get(userKey string) (AwsRolesCustomSchemaDTO, error) {
 
 	return result, nil
 }
-
 
 func (client *Client) update(userKey string, awsRoles AwsRolesCustomSchemaDTO) error {
 
@@ -136,8 +132,8 @@ func (client *Client) createDTO(roles []string) AwsRolesCustomSchemaDTO {
 		awsRoles = append(awsRoles, awsRole)
 	}
 	return AwsRolesCustomSchemaDTO{
-		Roles:awsRoles,
-		SessionDuration:14400,
+		Roles:           awsRoles,
+		SessionDuration: 14400,
 	}
 }
 
@@ -160,7 +156,7 @@ func (client *Client) Users() ([]User, error) {
 
 	var result []User
 
-	for _,u := range response.Users {
+	for _, u := range response.Users {
 		user := User{
 			Id:    u.Id,
 			email: u.PrimaryEmail,
@@ -205,7 +201,7 @@ func (client *Client) Roles(userId string) ([]string, error) {
 
 	var result []string
 
-	for _,x := range awsRoles.Roles {
+	for _, x := range awsRoles.Roles {
 		result = append(result, x.Value)
 	}
 

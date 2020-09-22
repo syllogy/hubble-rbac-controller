@@ -6,7 +6,7 @@ import (
 
 type SequentialDagRunner struct {
 	taskRunner TaskRunner
-	logger logr.Logger
+	logger     logr.Logger
 }
 
 func NewSequentialDagRunner(taskRunner TaskRunner, logger logr.Logger) *SequentialDagRunner {

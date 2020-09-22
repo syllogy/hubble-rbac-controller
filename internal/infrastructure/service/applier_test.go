@@ -75,7 +75,6 @@ func setUp() {
 	}
 }
 
-
 func TestApplier_Apply(t *testing.T) {
 
 	setUp()
@@ -93,7 +92,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	session := iam.LocalStackSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)
-	iamApplier := iam.NewApplier(iamClient, accountId, region, &IamEventRecorder{logger:logger}, logger)
+	iamApplier := iam.NewApplier(iamClient, accountId, region, &IamEventRecorder{logger: logger}, logger)
 
 	redshiftExpected := redshift.NewRedshiftState()
 	redshiftExpected.Users = []string{"lunarway"}
@@ -115,7 +114,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Create database")
 	database := model.AddDatabase("hubble", "prod")
-	err = applier.Apply(model,false)
+	err = applier.Apply(model, false)
 	failOnError(err)
 
 	redshiftClient, err := redshift.NewClient(
@@ -129,7 +128,6 @@ func TestApplier_Apply(t *testing.T) {
 	)
 	failOnError(err)
 
-
 	redshiftActual := redshift.FetchState(redshiftClient)
 	redshift.AssertState(assert, redshiftActual, redshiftExpected, "database should be unaffected")
 	iamActual := iam.FetchIAMState(iamClient)
@@ -137,7 +135,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Create role")
 	role := model.AddRole("BiAnalyst", []hubble.DataSet{"public_bi"})
-	err = applier.Apply(model,false)
+	err = applier.Apply(model, false)
 	failOnError(err)
 
 	redshiftActual = redshift.FetchState(redshiftClient)
@@ -148,7 +146,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Grant role access to database")
 	role.GrantAccess(database)
-	err = applier.Apply(model,false)
+	err = applier.Apply(model, false)
 	failOnError(err)
 
 	redshiftActual = redshift.FetchState(redshiftClient)
@@ -158,13 +156,13 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Assign user to role")
 	user.Assign(role)
-	err = applier.Apply(model,false)
+	err = applier.Apply(model, false)
 	failOnError(err)
 
 	redshiftExpected.Users = []string{"lunarway", "jwr_bianalyst"}
 	redshiftExpected.Groups = []string{"bianalyst"}
 	redshiftExpected.GroupMemberships = map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}}
-	redshiftExpected.Grants = map[string][]string{"bianalyst": {"public","public_bi"}}
+	redshiftExpected.Grants = map[string][]string{"bianalyst": {"public", "public_bi"}}
 	redshiftActual = redshift.FetchState(redshiftClient)
 	redshift.AssertState(assert, redshiftActual, redshiftExpected, "user,groups and grants have been created")
 
@@ -174,7 +172,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Revoke access")
 	role.RevokeAccess(database)
-	err = applier.Apply(model,false)
+	err = applier.Apply(model, false)
 	failOnError(err)
 
 	redshiftExpected = redshift.NewRedshiftState()
@@ -191,7 +189,7 @@ func TestApplier_Apply(t *testing.T) {
 
 	log.Info("Unassign user from role")
 	user.Unassign(role)
-	err = applier.Apply(model,false)
+	err = applier.Apply(model, false)
 	failOnError(err)
 
 	redshiftActual = redshift.FetchState(redshiftClient)

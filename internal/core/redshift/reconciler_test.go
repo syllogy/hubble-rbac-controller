@@ -23,7 +23,7 @@ func buildDesired() Model {
 	cluster.DeclareUser("jwr_bianalyst", biGroup)
 	database.DeclareUser("jwr_bianalyst")
 	cluster.DeclareUser("jwr_bianalyst2", biGroup)
-	biDatabaseGroup.GrantSchema(&Schema{ Name: "public" })
+	biDatabaseGroup.GrantSchema(&Schema{Name: "public"})
 
 	return model
 }

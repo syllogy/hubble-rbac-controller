@@ -10,8 +10,8 @@ import (
 )
 
 type Client struct {
-	db *sql.DB
-	user string
+	db                       *sql.DB
+	user                     string
 	externalSchemasSupported bool
 }
 
@@ -36,8 +36,8 @@ func NewClient(user string, password string, addr string, database string, sslmo
 		return nil, fmt.Errorf("redshift ping error : (%v)", err)
 	}
 	return &Client{
-		db: db,
-		user: user,
+		db:                       db,
+		user:                     user,
 		externalSchemasSupported: externalSchemasSupported,
 	}, nil
 }
@@ -113,7 +113,7 @@ func (c *Client) stringRows(sql string) ([]Row, error) {
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, Row{Cells:[]string{key, value}})
+		result = append(result, Row{Cells: []string{key, value}})
 	}
 
 	return result, nil
@@ -133,7 +133,7 @@ func (c *Client) Groups() ([]string, error) {
 }
 
 func (c *Client) Users() ([]string, error) {
-		return c.stringList("select usename from pg_user")
+	return c.stringList("select usename from pg_user")
 }
 
 func (c *Client) Schemas() ([]string, error) {
@@ -331,7 +331,7 @@ func (c *Client) DeleteUser(username string) error {
 	return err
 }
 
-func (c* Client) SetSchemaOwner(username string, schema string) error {
+func (c *Client) SetSchemaOwner(username string, schema string) error {
 	_, err := c.db.Exec(fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s", schema, username))
 	return err
 }
@@ -357,7 +357,7 @@ func (c *Client) Grants(groupName string) ([]string, error) {
 	var result []string
 
 	for _, schema := range schemas {
-			isGranted, err := c.bool( fmt.Sprintf("select pg_catalog.has_schema_privilege('dummy_%s', '%s', 'USAGE')", groupName, schema))
+		isGranted, err := c.bool(fmt.Sprintf("select pg_catalog.has_schema_privilege('dummy_%s', '%s', 'USAGE')", groupName, schema))
 
 		if err != nil {
 			return nil, err
@@ -398,6 +398,6 @@ func (c *Client) Revoke(groupName string, schemaName string) error {
 		return err
 	}
 
-		_, err = c.db.Exec(fmt.Sprintf("REVOKE ALL ON SCHEMA %s FROM GROUP %s", schemaName, groupName))
+	_, err = c.db.Exec(fmt.Sprintf("REVOKE ALL ON SCHEMA %s FROM GROUP %s", schemaName, groupName))
 	return err
 }
