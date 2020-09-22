@@ -129,7 +129,7 @@ func (c *Client) contains(list []string, item string) bool {
 }
 
 func (c *Client) Groups() ([]string, error) {
-	return c.stringList("SELECT groname FROM pg_group WHERE groname !~ '^pg_'")
+	return c.stringList("SELECT groname FROM pg_group WHERE groname !~ '^pg_' and groname !~'_datashare_roles'")
 }
 
 func (c *Client) Users() ([]string, error) {
