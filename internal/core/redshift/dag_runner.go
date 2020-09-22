@@ -18,7 +18,7 @@ func (d *SequentialDagRunner) Run(dag *ReconciliationDag) {
 	for dag.PendingExists() {
 		for _, task := range dag.GetWaiting() {
 			if task.CannotRun() {
-				d.logger.Info("skipping task", "task", task.identifier)
+				d.logger.Info("skipping task", "task", task.String())
 				task.Skip()
 				continue
 			}

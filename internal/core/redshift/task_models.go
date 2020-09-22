@@ -7,6 +7,9 @@ type GrantsModel struct {
 }
 
 func (s *GrantsModel) Equals(rhs Equatable) bool {
+	if rhs == nil {
+		return false
+	}
 	other, ok := rhs.(*GrantsModel)
 	if !ok {
 		return false
@@ -23,6 +26,9 @@ type MembershipModel struct {
 }
 
 func (s *MembershipModel) Equals(rhs Equatable) bool {
+	if rhs == nil {
+		return false
+	}
 	other, ok := rhs.(*MembershipModel)
 	if !ok {
 		return false
@@ -38,6 +44,9 @@ type DatabaseModel struct {
 }
 
 func (s *DatabaseModel) Equals(rhs Equatable) bool {
+	if rhs == nil {
+		return false
+	}
 	other, ok := rhs.(*DatabaseModel)
 	if !ok {
 		return false
@@ -52,6 +61,9 @@ type UserModel struct {
 }
 
 func (s *UserModel) Equals(rhs Equatable) bool {
+	if rhs == nil {
+		return false
+	}
 	other, ok := rhs.(*UserModel)
 	if !ok {
 		return false
@@ -66,6 +78,9 @@ type GroupModel struct {
 }
 
 func (s *GroupModel) Equals(rhs Equatable) bool {
+	if rhs == nil {
+		return false
+	}
 	other, ok := rhs.(*GroupModel)
 	if !ok {
 		return false
@@ -80,6 +95,9 @@ type SchemaModel struct {
 }
 
 func (s *SchemaModel) Equals(rhs Equatable) bool {
+	if rhs == nil {
+		return false
+	}
 	other, ok := rhs.(*SchemaModel)
 	if !ok {
 		return false
@@ -95,6 +113,9 @@ type ExternalSchemaModel struct {
 }
 
 func (s *ExternalSchemaModel) Equals(rhs Equatable) bool {
+	if rhs == nil {
+		return false
+	}
 	other, ok := rhs.(*ExternalSchemaModel)
 	if !ok {
 		return false

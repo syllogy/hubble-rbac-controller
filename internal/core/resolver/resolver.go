@@ -13,7 +13,7 @@ type Resolver struct {
 }
 
 //transforms the given hubble model into separate models for the 3 systems we want to reconcile
-func (r *Resolver) Resolve(model hubble.Model) (redshift.Model, iam.Model, google.Model, error) {
+func (r *Resolver) Resolve(model hubble.Model) (redshift.Model, iam.Model, google.Model) {
 
 	redshiftModel:=redshift.Model{}
 	iamModel:=iam.Model{}
@@ -104,5 +104,5 @@ func (r *Resolver) Resolve(model hubble.Model) (redshift.Model, iam.Model, googl
 		}
 	}
 
-	return redshiftModel, iamModel, googleModel, nil
+	return redshiftModel, iamModel, googleModel
 }

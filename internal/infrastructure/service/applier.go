@@ -4,9 +4,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/resolver"
-	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
-	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
 )
 
 
@@ -24,16 +22,16 @@ func NewIamLogger(logger logr.Logger) *IamEventRecorder {
 
 type Applier struct {
 	resolver *resolver.Resolver
-	googleApplier google.Applier
-	redshiftApplier redshift.Applier
+	googleApplier GoogleApplier
+	redshiftApplier RedshiftApplier
 	iamApplier *iam.Applier
 	logger logr.Logger
 }
 
 func NewApplier(
 	iamApplier *iam.Applier,
-	googleApplier google.Applier,
-	redshiftApplier redshift.Applier,
+	googleApplier GoogleApplier,
+	redshiftApplier RedshiftApplier,
 	logger logr.Logger) *Applier {
 
 	return &Applier{
@@ -50,14 +48,10 @@ func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 
 	applier.logger.Info("Received hubble model", "model", model)
 
-	redshiftModel, iamModel, googleModel, err := applier.resolver.Resolve(model)
-
-	if err != nil {
-		return err
-	}
+	redshiftModel, iamModel, googleModel := applier.resolver.Resolve(model)
 
 	applier.logger.Info("Applying redshift model", "model", redshiftModel)
-	err = applier.redshiftApplier.Apply(redshiftModel, dryRun)
+	err := applier.redshiftApplier.Apply(redshiftModel, dryRun)
 
 	if err != nil {
 		return err

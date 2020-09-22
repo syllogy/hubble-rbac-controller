@@ -1,6 +1,9 @@
 package redshift
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/go-logr/logr"
+)
 
 type TaskRunner interface {
 	CreateUser(model *UserModel) error
@@ -41,57 +44,60 @@ func ExecuteTask(taskRunner TaskRunner, task *Task) error {
 	case RemoveFromGroup:
 		return taskRunner.RemoveFromGroup(task.model.(*MembershipModel))
 	default:
-		return fmt.Errorf("unexpected task type: %d", int(task.taskType))
+		return fmt.Errorf("unexpected task type: %s", task.taskType.String())
 	}
-	return nil
 }
 
 type TaskPrinter struct {
+	logger logr.Logger
+}
 
+func NewTaskPrinter(logger logr.Logger) *TaskPrinter {
+	return &TaskPrinter{logger:logger}
 }
 
 func (t *TaskPrinter) CreateUser(model *UserModel) error {
-	fmt.Printf("CreateUser (%s) %s\n", model.ClusterIdentifier, model.User.Name)
+	t.logger.Info("CreateUser", "clusterIdentifier", model.ClusterIdentifier, "username", model.User.Name)
 	return nil
 }
 func (t *TaskPrinter) DropUser(model *UserModel) error {
-	fmt.Printf("DropUser (%s) %s\n", model.ClusterIdentifier,model.User.Name)
+	t.logger.Info("DropUser", "clusterIdentifier", model.ClusterIdentifier, "username", model.User.Name)
 	return nil
 }
 func (t *TaskPrinter) CreateGroup(model *GroupModel) error {
-	fmt.Printf("CreateGroup (%s) %s\n", model.ClusterIdentifier,model.Group.Name)
+	t.logger.Info("CreateGroup", "clusterIdentifier", model.ClusterIdentifier, "groupName", model.Group.Name)
 	return nil
 }
 func (t *TaskPrinter) DropGroup(model *GroupModel) error {
-	fmt.Printf("DropGroup (%s) %s\n", model.ClusterIdentifier,model.Group.Name)
+	t.logger.Info("DropGroup", "clusterIdentifier", model.ClusterIdentifier, "groupName", model.Group.Name)
 	return nil
 }
 func (t *TaskPrinter) CreateSchema(model *SchemaModel) error {
-	fmt.Printf("CreateSchema (%s.%s) %s\n", model.Database.ClusterIdentifier, model.Database.Name, model.Schema.Name)
+	t.logger.Info("CreateSchema", "clusterIdentifier", model.Database.ClusterIdentifier, "databaseName", model.Database.Name, "schemaName", model.Schema.Name)
 	return nil
 }
 func (t *TaskPrinter) CreateExternalSchema(model *ExternalSchemaModel) error {
-	fmt.Printf("CreateExternalSchema (%s.%s) %s\n", model.Database.ClusterIdentifier, model.Database.Name, model.Schema.Name)
+	t.logger.Info("CreateExternalSchema", "clusterIdentifier", model.Database.ClusterIdentifier, "databaseName", model.Database.Name, "schemaName", model.Schema.Name)
 	return nil
 }
 func (t *TaskPrinter) CreateDatabase(model *DatabaseModel) error {
-	fmt.Printf("CreateDatabase %s.%s\n", model.ClusterIdentifier, model.Database.Name)
+	t.logger.Info("CreateDatabase", "clusterIdentifier", model.ClusterIdentifier, "databaseName", model.Database.Name)
 	return nil
 }
 func (t *TaskPrinter) GrantAccess(model *GrantsModel) error {
-	fmt.Printf("GrantAccess (%s.%s) %s->%s\n", model.Database.ClusterIdentifier, model.Database.Name, model.GroupName, model.SchemaName)
+	t.logger.Info("GrantAccess", "clusterIdentifier", model.Database.ClusterIdentifier, "databaseName", model.Database.Name, "groupName", model.GroupName, "schemaName", model.SchemaName)
 	return nil
 }
 func (t *TaskPrinter) RevokeAccess(model *GrantsModel) error {
-	fmt.Printf("RevokeAccess (%s.%s) %s->%s\n", model.Database.ClusterIdentifier, model.Database.Name, model.GroupName, model.SchemaName)
+	t.logger.Info("RevokeAccess", "clusterIdentifier", model.Database.ClusterIdentifier, "databaseName", model.Database.Name, "groupName", model.GroupName, "schemaName", model.SchemaName)
 	return nil
 }
 func (t *TaskPrinter) AddToGroup(model *MembershipModel) error {
-	fmt.Printf("AddToGroup (%s) %s->%s\n", model.ClusterIdentifier, model.Username, model.GroupName)
+	t.logger.Info("AddToGroup", "clusterIdentifier", model.ClusterIdentifier, "username", model.Username, "groupName", model.GroupName)
 	return nil
 }
 func (t *TaskPrinter) RemoveFromGroup(model *MembershipModel) error {
-	fmt.Printf("RemoveFromGroup (%s) %s->%s\n", model.ClusterIdentifier, model.Username, model.GroupName)
+	t.logger.Info("RemoveFromGroup", "clusterIdentifier", model.ClusterIdentifier, "username", model.Username, "groupName", model.GroupName)
 	return nil
 }
 

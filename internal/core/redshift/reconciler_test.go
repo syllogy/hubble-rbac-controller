@@ -1,18 +1,9 @@
 package redshift
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
-
-func init() {
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.InfoLevel)
-	//log.SetFormatter(&log.JSONFormatter{PrettyPrint:true})
-}
-
 
 func buildCurrent() Model {
 

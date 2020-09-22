@@ -5,19 +5,15 @@ import (
 	googleCore "github.com/lunarway/hubble-rbac-controller/internal/core/google"
 )
 
-type Applier interface {
-	Apply(model googleCore.Model) error
-}
-
-type ApplierImpl struct {
+type Applier struct {
 	client *Client
 }
 
-func NewApplier(client *Client) *ApplierImpl {
-	return &ApplierImpl{client: client}
+func NewApplier(client *Client) *Applier {
+	return &Applier{client: client}
 }
 
-func (applier *ApplierImpl) userByEmail(users []User, email string) *User {
+func (applier *Applier) userByEmail(users []User, email string) *User {
 	for _,user := range users {
 		if user.email == email {
 			return &user
@@ -26,7 +22,7 @@ func (applier *ApplierImpl) userByEmail(users []User, email string) *User {
 	return nil
 }
 
-func (applier *ApplierImpl) Apply(model googleCore.Model) error {
+func (applier *Applier) Apply(model googleCore.Model) error {
 
 	googleUsers, err := applier.client.Users()
 

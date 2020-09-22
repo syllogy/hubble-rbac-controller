@@ -6,11 +6,7 @@ import (
 	redshiftCore "github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 )
 
-type Applier interface {
-	Apply(model redshiftCore.Model, dryRun bool) error
-}
-
-type ApplierImpl struct {
+type Applier struct {
 	reconcilerConfig redshiftCore.ReconcilerConfig
 	clientGroup     ClientGroup
 	excluded *redshiftCore.Exclusions
@@ -18,8 +14,8 @@ type ApplierImpl struct {
 	logger logr.Logger
 }
 
-func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshiftCore.ReconcilerConfig) *ApplierImpl {
-	return &ApplierImpl{
+func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshiftCore.ReconcilerConfig) *Applier {
+	return &Applier{
 		clientGroup:     clientGroup,
 		reconcilerConfig:reconcilerConfig,
 		excluded: excluded,
@@ -28,7 +24,7 @@ func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsA
 	}
 }
 
-func (applier *ApplierImpl) Apply(model redshiftCore.Model, dryRun bool) error {
+func (applier *Applier) Apply(model redshiftCore.Model, dryRun bool) error {
 
 	err := model.Validate(applier.excluded)
 
@@ -43,7 +39,7 @@ func (applier *ApplierImpl) Apply(model redshiftCore.Model, dryRun bool) error {
 	resolver := NewModelResolver(applier.clientGroup, applier.excluded)
 	var taskRunner redshiftCore.TaskRunner
 	if dryRun {
-		taskRunner = &redshiftCore.TaskPrinter{}
+		taskRunner = redshiftCore.NewTaskPrinter(applier.logger)
 	} else {
 		taskRunner = NewTaskRunnerImpl(clientPool, applier.awsAccountId, applier.logger)
 	}

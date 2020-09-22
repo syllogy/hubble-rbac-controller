@@ -2,14 +2,14 @@ package google
 
 import googleCore "github.com/lunarway/hubble-rbac-controller/internal/core/google"
 
-type FakeApplier struct {
+type NoOpApplier struct {
 
 }
 
-func NewFakeApplier() Applier {
-	return &FakeApplier{}
+func NewNoOpApplier() *NoOpApplier {
+	return &NoOpApplier{}
 }
 
-func (applier *FakeApplier) Apply(model googleCore.Model) error {
+func (applier *NoOpApplier) Apply(model googleCore.Model) error {
 	return nil
 }

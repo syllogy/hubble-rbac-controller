@@ -5,10 +5,10 @@ package service
 import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
 	redshiftCore "github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
-	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -82,15 +82,14 @@ func TestApplier_Apply(t *testing.T) {
 
 	assert := assert.New(t)
 
-	//logger := infrastructure.NewLogger(t)
-	logger := zap.Logger()
+	logger := infrastructure.NewLogger(t)
 
 	excludedUsers := []string{"lunarway"}
 	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
-	clientGroup := redshift.NewClientGroup2(&localhostCredentials)
+	clientGroup := redshift.NewClientGroupForTest(&localhostCredentials)
 	redshiftApplier := redshift.NewApplier(clientGroup, redshiftCore.NewExclusions(excludedDatabases, excludedUsers), accountId, logger, redshiftCore.DefaultReconcilerConfig())
 
-	googleApplier := google.NewFakeApplier()
+	googleApplier := google.NewNoOpApplier()
 
 	session := iam.LocalStackSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)
@@ -104,9 +103,9 @@ func TestApplier_Apply(t *testing.T) {
 
 	applier := NewApplier(iamApplier, googleApplier, redshiftApplier, logger)
 
-	xxx := redshiftCore.Model{}
-	xxx.DeclareCluster("hubble")
-	err := redshiftApplier.Apply(xxx, false)
+	redshiftModel := redshiftCore.Model{}
+	redshiftModel.DeclareCluster("hubble")
+	err := redshiftApplier.Apply(redshiftModel, false)
 	failOnError(err)
 
 	model := hubble.Model{}

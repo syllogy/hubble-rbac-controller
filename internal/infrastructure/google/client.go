@@ -89,7 +89,8 @@ func (client *Client) get(userKey string) (AwsRolesCustomSchemaDTO, error) {
 	err = json.Unmarshal(user.CustomSchemas["AWS_SAML"], &result)
 
 	if err != nil {
-		//this property might not have been set if the user has not yet been setup with AWS
+		//this property might not have been set if the user has not yet been setup with AWS.
+		//In that case we return an empty DTO to the client
 		log.WithError(err).Warn("unable to load the AWS_SAML property on the user")
 		return result, nil
 	}

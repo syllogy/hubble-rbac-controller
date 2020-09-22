@@ -12,7 +12,7 @@ type Database struct {
 	Name              string
 }
 
-//An unmanaged policy that wo want to give to the role.
+//An unmanaged policy that we want to give to the role.
 type PolicyReference struct {
 	Arn string
 }

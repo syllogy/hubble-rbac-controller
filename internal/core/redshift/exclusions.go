@@ -1,5 +1,10 @@
 package redshift
 
+type Excluder interface {
+	IsDatabaseExcluded(string) bool
+	IsUserExcluded(string) bool
+}
+
 type Exclusions struct {
 	excludedUsers   []string //excluded users will not be deleted, even if they are not mentioned in the applied model
 	excludedDatabases []string //excluded databases will not have their grants managed

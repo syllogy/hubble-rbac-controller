@@ -69,12 +69,6 @@ rules:
 - apiGroups:
   - lunarway
   resources:
-  - '*'
-  - hubbledatabases
-  - hubbledatasources
-  - hubbleroles
-  - hubbledeveloperdatabases
-  - hubblepolicyreferences
   - hubblerbacs
   verbs:
   - create

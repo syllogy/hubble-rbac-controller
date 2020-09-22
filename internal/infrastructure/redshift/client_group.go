@@ -28,7 +28,7 @@ type ClientGroupSharedCredentials struct {
 	hostResolver HostResolver
 }
 
-func NewClientGroup(credentials *ClusterCredentials) ClientGroup {
+func NewClientGroup(credentials *ClusterCredentials) *ClientGroupSharedCredentials {
 	return &ClientGroupSharedCredentials{
 		credentials: credentials,
 		hostResolver: func(clusterIdentifier string) string {
@@ -37,7 +37,8 @@ func NewClientGroup(credentials *ClusterCredentials) ClientGroup {
 	}
 }
 
-func NewClientGroup2(credentials *ClusterCredentials) ClientGroup {
+//A client group used to connect to a postgresql database. Only used in tests.
+func NewClientGroupForTest(credentials *ClusterCredentials) *ClientGroupSharedCredentials {
 	return &ClientGroupSharedCredentials{
 		credentials: credentials,
 		hostResolver: func(clusterIdentifier string) string {

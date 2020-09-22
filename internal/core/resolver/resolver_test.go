@@ -93,8 +93,8 @@ func Test_DbtDeveloper(t *testing.T) {
 	}
 
 	resolver := Resolver{}
-	redshiftModel, iamModel, googleModel, _ := resolver.Resolve(model)
-	fmt.Println(redshiftModel)
+	redshiftModel, iamModel, googleModel := resolver.Resolve(model)
+	t.Log(redshiftModel)
 
 	dbUsername := fmt.Sprintf("%s_%s", data.dbtDeveloper.Username, data.dbtDeveloperRole.Name)
 
@@ -143,7 +143,7 @@ func Test_BiAnalyst(t *testing.T) {
 	}
 
 	resolver := Resolver{}
-	redshiftModel, iamModel, googleModel, _ := resolver.Resolve(model)
+	redshiftModel, iamModel, googleModel := resolver.Resolve(model)
 
 	dbUsername := fmt.Sprintf("%s_%s", data.biAnalyst.Username, data.biAnalystRole.Name)
 

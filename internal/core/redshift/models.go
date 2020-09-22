@@ -69,15 +69,16 @@ func (m *Model) Validate(excluded *Exclusions) error {
 	return nil
 }
 
-func (c *Cluster) Validate(excluded *Exclusions) error {
+//TODO: Collect all validation errors and return the list instead of returning only the first error found
+func (c *Cluster) Validate(excluded Excluder) error {
 	for _, database := range c.Databases {
 		for _, user := range database.Users {
+			if excluded.IsDatabaseExcluded(database.Name) {
+				return fmt.Errorf("database with name %s has been excluded and cannot be managed", database.Name)
+			}
 			if c.LookupUser(user.Name) == nil {
 				return fmt.Errorf("user with name %s from database %s has not been declared on the cluster", user.Name, database.Name)
 			}
-		}
-		if excluded.IsDatabaseExcluded(database.Name) {
-			return fmt.Errorf("database with name %s has been excluded and cannot be managed", database.Name)
 		}
 	}
 
@@ -156,7 +157,7 @@ func (c *Cluster) DeclareGroup(name string) *Group {
 
 func (c *Cluster) LookupDatabase(name string) *Database {
 	for _,db := range c.Databases {
-		if db.Name == strings.ToLower(name) {
+		if strings.EqualFold(db.Name, name) {
 			return db
 		}
 	}
@@ -185,7 +186,7 @@ func (c *Cluster) declareDatabase(name string, owner *string) *Database {
 
 func (d *Database) LookupGroup(name string) *DatabaseGroup {
 	for _,group := range d.Groups {
-		if group.Name == strings.ToLower(name) {
+		if strings.EqualFold(group.Name, name) {
 			return group
 		}
 	}
@@ -205,7 +206,7 @@ func (d *Database) DeclareGroup(name string) *DatabaseGroup {
 
 func (d *Database) LookupUser(name string) *DatabaseUser {
 	for _, user := range d.Users {
-		if user.Name == strings.ToLower(name) {
+		if strings.EqualFold(user.Name, name) {
 			return user
 		}
 	}
@@ -255,7 +256,7 @@ func (g *DatabaseGroup) Granted() []string {
 
 func (g *DatabaseGroup) LookupGrantedSchema(name string) *Schema {
 	for _, schema := range g.GrantedSchemas {
-		if schema.Name == strings.ToLower(name) {
+		if strings.EqualFold(schema.Name, name) {
 			return schema
 		}
 	}
@@ -264,7 +265,7 @@ func (g *DatabaseGroup) LookupGrantedSchema(name string) *Schema {
 
 func (g *DatabaseGroup) LookupGrantedExternalSchema(name string) *ExternalSchema {
 	for _, schema := range g.GrantedExternalSchemas {
-		if schema.Name  == strings.ToLower(name) {
+		if strings.EqualFold(schema.Name, name) {
 			return schema
 		}
 	}
@@ -273,6 +274,7 @@ func (g *DatabaseGroup) LookupGrantedExternalSchema(name string) *ExternalSchema
 
 func (u *User) Role() *Group {
 
+	//TODO: Enforce len(u.MemberOf) == 1 as an invariant. Encapsulate the MemberOf field and ensure that it is always 1
 	if len(u.MemberOf) != 1 {
 		return nil
 	}

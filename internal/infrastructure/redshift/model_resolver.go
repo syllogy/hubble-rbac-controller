@@ -76,51 +76,51 @@ func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshi
 	}
 
 	for _, databaseName := range databases {
-		if !m.excluded.IsDatabaseExcluded(databaseName) {
+		if m.excluded.IsDatabaseExcluded(databaseName) {
+			continue
+		}
 
-			var database *redshift.Database
+		var database *redshift.Database
 
-			owner, _ := ownersMap[databaseName]
+		owner, _ := ownersMap[databaseName]
 
-			if !m.excluded.IsUserExcluded(owner) {
-				database = cluster.DeclareDatabaseWithOwner(databaseName, owner)
-			} else {
-				database = cluster.DeclareDatabase(databaseName)
+		if !m.excluded.IsUserExcluded(owner) {
+			database = cluster.DeclareDatabaseWithOwner(databaseName, owner)
+		} else {
+			database = cluster.DeclareDatabase(databaseName)
+		}
+
+		databaseClient, err := clientPool.GetDatabaseClient(database.ClusterIdentifier, databaseName)
+
+		if err != nil {
+			return err
+		}
+		for _, row := range usersAndGroups {
+			user := row.Cells[0]
+			if !m.excluded.IsUserExcluded(user) {
+				database.DeclareUser(user)
 			}
+		}
 
-			databaseClient, err := clientPool.GetDatabaseClient(database.ClusterIdentifier, databaseName)
+		for _, group := range groups {
+			databaseGroup := database.DeclareGroup(group)
+
+			grants, err := databaseClient.Grants(group)
 
 			if err != nil {
 				return err
 			}
-			for _, row := range usersAndGroups {
-				user := row.Cells[0]
-				if !m.excluded.IsUserExcluded(user) {
-					database.DeclareUser(user)
+
+			for _, schema := range grants {
+
+				glueDatabase, ok := externalSchemas[schema]
+
+				if ok {
+					databaseGroup.GrantExternalSchema(&redshift.ExternalSchema{Name:schema, GlueDatabaseName:glueDatabase})
+				} else {
+					databaseGroup.GrantSchema(&redshift.Schema{Name:schema})
 				}
 			}
-
-			for _, group := range groups {
-				databaseGroup := database.DeclareGroup(group)
-
-				grants, err := databaseClient.Grants(group)
-
-				if err != nil {
-					return err
-				}
-
-				for _, schema := range grants {
-
-					glueDatabase, ok := externalSchemas[schema]
-
-					if ok {
-						databaseGroup.GrantExternalSchema(&redshift.ExternalSchema{Name:schema, GlueDatabaseName:glueDatabase})
-					} else {
-						databaseGroup.GrantSchema(&redshift.Schema{Name:schema})
-					}
-				}
-			}
-
 		}
 	}
 	return nil
