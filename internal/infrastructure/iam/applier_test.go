@@ -8,9 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	iamCore "github.com/lunarway/hubble-rbac-controller/internal/core/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
 
@@ -29,11 +27,6 @@ func failOnError(err error) {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func init() {
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.InfoLevel)
 }
 
 func (client *Client) createUnmanagedPolicy(name string, document string) (*iam.Policy, error) {

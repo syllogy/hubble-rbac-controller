@@ -2,7 +2,7 @@ package google
 
 import (
 	"fmt"
-	googleCore "github.com/lunarway/hubble-rbac-controller/internal/core/google"
+	"github.com/lunarway/hubble-rbac-controller/internal/core/google"
 )
 
 type Applier struct {
@@ -22,7 +22,7 @@ func (applier *Applier) userByEmail(users []User, email string) *User {
 	return nil
 }
 
-func (applier *Applier) Apply(model googleCore.Model) error {
+func (applier *Applier) Apply(model google.Model) error {
 
 	googleUsers, err := applier.client.Users()
 

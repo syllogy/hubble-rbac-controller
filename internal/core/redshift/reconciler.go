@@ -106,6 +106,7 @@ func (d *Reconciler) updateCluster(currentCluster *Cluster, desiredCluster *Clus
 		if desiredGroup == nil {
 			d.dropGroup(currentCluster.Identifier, currentGroup)
 		}
+		//a group has no attributes, thus it makes no sense to update a group
 	}
 
 	for _, currentDatabase := range currentCluster.Databases {
@@ -124,6 +125,7 @@ func (d *Reconciler) updateCluster(currentCluster *Cluster, desiredCluster *Clus
 		if currentGroup == nil {
 			d.createGroup(currentCluster.Identifier, desiredGroup)
 		}
+		//a group has no attributes, thus it makes no sense to update a group
 	}
 
 	for _, desiredUser := range desiredCluster.Users {

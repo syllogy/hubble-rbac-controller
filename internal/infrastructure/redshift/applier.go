@@ -3,18 +3,18 @@ package redshift
 import (
 	"fmt"
 	"github.com/go-logr/logr"
-	redshiftCore "github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
+	"github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 )
 
 type Applier struct {
-	reconcilerConfig redshiftCore.ReconcilerConfig
+	reconcilerConfig redshift.ReconcilerConfig
 	clientGroup      ClientGroup
-	excluded         *redshiftCore.Exclusions
+	excluded         *redshift.Exclusions
 	awsAccountId     string
 	logger           logr.Logger
 }
 
-func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshiftCore.ReconcilerConfig) *Applier {
+func NewApplier(clientGroup ClientGroup, excluded *redshift.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshift.ReconcilerConfig) *Applier {
 	return &Applier{
 		clientGroup:      clientGroup,
 		reconcilerConfig: reconcilerConfig,
@@ -24,7 +24,7 @@ func NewApplier(clientGroup ClientGroup, excluded *redshiftCore.Exclusions, awsA
 	}
 }
 
-func (applier *Applier) Apply(model redshiftCore.Model, dryRun bool) error {
+func (applier *Applier) Apply(model redshift.Model, dryRun bool) error {
 
 	err := model.Validate(applier.excluded)
 
@@ -37,14 +37,14 @@ func (applier *Applier) Apply(model redshiftCore.Model, dryRun bool) error {
 	defer clientPool.Close()
 
 	resolver := NewModelResolver(applier.clientGroup, applier.excluded)
-	var taskRunner redshiftCore.TaskRunner
+	var taskRunner redshift.TaskRunner
 	if dryRun {
-		taskRunner = redshiftCore.NewTaskPrinter(applier.logger)
+		taskRunner = redshift.NewTaskPrinter(applier.logger)
 	} else {
 		taskRunner = NewTaskRunnerImpl(clientPool, applier.awsAccountId, applier.logger)
 	}
 
-	dagRunner := redshiftCore.NewSequentialDagRunner(taskRunner, applier.logger)
+	dagRunner := redshift.NewSequentialDagRunner(taskRunner, applier.logger)
 
 	var clusterIdentifiers []string
 	for _, cluster := range model.Clusters {
@@ -61,7 +61,7 @@ func (applier *Applier) Apply(model redshiftCore.Model, dryRun bool) error {
 
 	applier.logger.Info("Current model fetched", "model", currentModel)
 
-	dag := redshiftCore.Reconcile(currentModel, &model, applier.reconcilerConfig)
+	dag := redshift.Reconcile(currentModel, &model, applier.reconcilerConfig)
 
 	applier.logger.Info("Reconciliation DAG built", "numTasks", dag.NumTasks())
 
