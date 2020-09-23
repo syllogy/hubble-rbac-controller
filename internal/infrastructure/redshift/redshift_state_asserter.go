@@ -28,20 +28,20 @@ func FetchState(client *Client) RedshiftState {
 
 	result := NewRedshiftState()
 
-	for _,group := range dbGroups {
+	for _, group := range dbGroups {
 		result.Groups = append(result.Groups, group)
 	}
 
-	for _,user := range dbUsers {
+	for _, user := range dbUsers {
 		result.Users = append(result.Users, user)
 	}
 
-	for _,username := range dbUsers {
+	for _, username := range dbUsers {
 		dbUserGroups, _ := client.PartOf(username)
 		result.GroupMemberships[username] = dbUserGroups
 	}
 
-	for _,groupName := range dbGroups {
+	for _, groupName := range dbGroups {
 		dbSchemas, _ := client.Grants(groupName)
 		result.Grants[groupName] = dbSchemas
 	}

@@ -4,6 +4,7 @@ package redshift
 
 import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -39,30 +40,28 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	assert := assert.New(t)
 
-	eventRecorder := EventRecorder{}
+	logger := infrastructure.NewLogger(t)
 	excludedUsers := []string{"lunarway"}
-	excludedSchemas := []string{"public"}
 	excludedDatabases := []string{"template0", "postgres"}
 
-	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
+	clientGroup := NewClientGroupForTest(&localhostCredentials)
+	applier := NewApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger, redshift.DefaultReconcilerConfig())
 
 	//Create empty model
 	model := redshift.Model{}
+	cluster := model.DeclareCluster("dev")
 
-	err := applier.Apply(model)
+	err := applier.Apply(model, false)
 	assert.NoError(err)
-	assert.Equal(0, eventRecorder.CountAll())
 
 	//Create a database with a BI user
-	cluster := model.DeclareCluster("dev")
 	biGroup := cluster.DeclareGroup("bianalyst")
 	cluster.DeclareUser("jwr_bianalyst", biGroup)
 	database := cluster.DeclareDatabase("jwr")
-	database.DeclareGroup("bianalyst")
+	biDatabaseGroup := database.DeclareGroup("bianalyst")
 	database.DeclareUser("jwr_bianalyst")
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	redshiftClient, err := clientGroup.ForDatabase(database)
@@ -70,45 +69,37 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	actual := FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst"},
+		Users:            []string{"lunarway", "jwr_bianalyst"},
 		Groups:           []string{"bianalyst"},
 		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public"}},
 	}, "")
 
-	assert.Equal(1, eventRecorder.Count(EnsureGroupExists))
-	assert.Equal(0, eventRecorder.Count(EnsureSchemaExists))
-	assert.Equal(1, eventRecorder.Count(EnsureUserExists))
-	assert.Equal(1, eventRecorder.Count(EnsureUserIsInGroup))
-
 	//Grant access to "bi"
-	biGroup.GrantSchema(&redshift.Schema{ Name: "bi" })
+	biDatabaseGroup.GrantSchema(&redshift.Schema{Name: "bi"})
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst"},
+		Users:            []string{"lunarway", "jwr_bianalyst"},
 		Groups:           []string{"bianalyst"},
-		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public", "bi"}},
 	}, "")
 
-	assert.Equal(1, eventRecorder.Count(EnsureSchemaExists))
-	assert.Equal(1, eventRecorder.Count(EnsureAccessIsGrantedToSchema))
-
 	//Grant access to "test"
-	biGroup.GrantSchema(&redshift.Schema{ Name: "test" })
+	biDatabaseGroup.GrantSchema(&redshift.Schema{Name: "test"})
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst"},
+		Users:            []string{"lunarway", "jwr_bianalyst"},
 		Groups:           []string{"bianalyst"},
-		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}},
 	}, "")
 
@@ -116,33 +107,33 @@ func TestApplier_ManageResources(t *testing.T) {
 	cluster.DeclareUser("nra_bianalyst", biGroup)
 	database.DeclareUser("nra_bianalyst")
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst","nra_bianalyst"},
+		Users:            []string{"lunarway", "jwr_bianalyst", "nra_bianalyst"},
 		Groups:           []string{"bianalyst"},
-		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}},
 		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}},
 	}, "")
 
 	//Add an AML user
 	amlGroup := cluster.DeclareGroup("aml")
-	database.DeclareGroup("aml")
-	amlGroup.GrantExternalSchema(&redshift.ExternalSchema{ Name: "lwgoevents", GlueDatabaseName: "lwgoevents" })
+	amlDatabaseGroup := database.DeclareGroup("aml")
+	amlDatabaseGroup.GrantExternalSchema(&redshift.ExternalSchema{Name: "lwgoevents", GlueDatabaseName: "lwgoevents"})
 	cluster.DeclareUser("jwr_aml", amlGroup)
 	database.DeclareUser("jwr_aml")
 
-	err = applier.Apply(model)
+	err = applier.Apply(model, false)
 	assert.NoError(err)
 
 	actual = FetchState(redshiftClient)
 	AssertState(assert, actual, RedshiftState{
-		Users:            []string{"lunarway","jwr_bianalyst","nra_bianalyst", "jwr_aml"},
+		Users:            []string{"lunarway", "jwr_bianalyst", "nra_bianalyst", "jwr_aml"},
 		Groups:           []string{"bianalyst", "aml"},
-		GroupMemberships: map[string][]string{"lunarway": {},"jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}, "jwr_aml": {"aml"}},
-		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}, "aml": {"public","lwgoevents"}},
+		GroupMemberships: map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}, "nra_bianalyst": {"bianalyst"}, "jwr_aml": {"aml"}},
+		Grants:           map[string][]string{"bianalyst": {"public", "bi", "test"}, "aml": {"public", "lwgoevents"}},
 	}, "")
 }
 
@@ -150,48 +141,21 @@ func TestApplier_FailsOnExcludedUser(t *testing.T) {
 
 	assert := assert.New(t)
 
-	eventRecorder := EventRecorder{}
+	logger := infrastructure.NewLogger(t)
 	excludedUsers := []string{"lunarway"}
-	excludedSchemas := []string{"public"}
 	excludedDatabases := []string{"template0", "postgres"}
 
-
-	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
-
-	model := redshift.Model{}
-	cluster := model.DeclareCluster("dev")
-	biGroup := cluster.DeclareGroup("bianalyst")
-	database := cluster.DeclareDatabase( "jwr")
-	database.DeclareGroup("bianalyst")
-	cluster.DeclareUser("lunarway", biGroup)
-	database.DeclareUser("lunarway")
-
-	err := applier.Apply(model)
-	assert.Error(err)
-}
-
-func TestApplier_FailsOnExcludedSchema(t *testing.T) {
-
-	assert := assert.New(t)
-
-	eventRecorder := EventRecorder{}
-	excludedUsers := []string{"lunarway"}
-	excludedSchemas := []string{"public"}
-	excludedDatabases := []string{"template0", "postgres"}
-
-	clientGroup := NewClientGroup(map[string]*ClusterCredentials{"dev": &localhostCredentials})
-	applier := NewApplier(clientGroup, excludedDatabases, excludedUsers, excludedSchemas, &eventRecorder, "478824949770")
+	clientGroup := NewClientGroupForTest(&localhostCredentials)
+	applier := NewApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger, redshift.DefaultReconcilerConfig())
 
 	model := redshift.Model{}
 	cluster := model.DeclareCluster("dev")
 	biGroup := cluster.DeclareGroup("bianalyst")
 	database := cluster.DeclareDatabase("jwr")
 	database.DeclareGroup("bianalyst")
-	cluster.DeclareUser("jwr_bianalyst", biGroup)
-	database.DeclareUser("jwr_bianalyst")
-	biGroup.GrantSchema(&redshift.Schema{ Name: "public" })
+	cluster.DeclareUser("lunarway", biGroup)
+	database.DeclareUser("lunarway")
 
-	err := applier.Apply(model)
+	err := applier.Apply(model, false)
 	assert.Error(err)
 }

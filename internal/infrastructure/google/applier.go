@@ -2,7 +2,7 @@ package google
 
 import (
 	"fmt"
-	googleCore "github.com/lunarway/hubble-rbac-controller/internal/core/google"
+	"github.com/lunarway/hubble-rbac-controller/internal/core/google"
 )
 
 type Applier struct {
@@ -14,7 +14,7 @@ func NewApplier(client *Client) *Applier {
 }
 
 func (applier *Applier) userByEmail(users []User, email string) *User {
-	for _,user := range users {
+	for _, user := range users {
 		if user.email == email {
 			return &user
 		}
@@ -22,7 +22,7 @@ func (applier *Applier) userByEmail(users []User, email string) *User {
 	return nil
 }
 
-func (applier *Applier) Apply(model googleCore.Model) error {
+func (applier *Applier) Apply(model google.Model) error {
 
 	googleUsers, err := applier.client.Users()
 
@@ -30,7 +30,7 @@ func (applier *Applier) Apply(model googleCore.Model) error {
 		return fmt.Errorf("Unable to retrieve users: %w", err)
 	}
 
-	for _,user := range model.Users {
+	for _, user := range model.Users {
 		googleUser := applier.userByEmail(googleUsers, user.Email)
 
 		if googleUser != nil {
@@ -40,7 +40,7 @@ func (applier *Applier) Apply(model googleCore.Model) error {
 				return fmt.Errorf("Unable to update roles: %w", err)
 			}
 		} else {
-			//TODO: notify that non existing user was found
+			return fmt.Errorf("user %s doesn't exist", user.Email)
 		}
 	}
 

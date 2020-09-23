@@ -18,12 +18,12 @@ code/compile:
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o=$(COMPILE_TARGET) ./cmd/manager
 
 .PHONY: test/unit
-test/integration:
-	go test ./pkg/...
+test/unit:
+	go test ./internal/...
 
 .PHONY: test/integration
 test/integration:
-	go test -tags integration ./pkg/...
+	go test -tags integration ./internal/...
 
 .PHONY: image/build
 image/build: code/compile
@@ -33,11 +33,6 @@ image/build: code/compile
 image/push:
 	docker push ${REG}/${ORG}/${PROJECT}:${TAG}
 
-.PHONY: release
-release:
-	sed -i "" 's|${REG}/${ORG}/${PROJECT}.*|${REG}/${ORG}/${PROJECT}:${TAG}|g' deploy/operator.yaml
-	git add deploy/operator.yaml
-	git commit -m"Release ${TAG}"
-	git tag ${TAG}
-	git push
-	git push --tags
+.PHONY: run/local
+run/local:
+	operator-sdk run --local --namespace=datascience

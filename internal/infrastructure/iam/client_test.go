@@ -21,9 +21,6 @@ func init() {
 	//log.SetFormatter(&log.JSONFormatter{PrettyPrint:true})
 }
 
-
-
-
 func Test_CreatePolicy_Is_Idempotent(t *testing.T) {
 
 	assert := assert.New(t)

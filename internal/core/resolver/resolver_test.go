@@ -1,7 +1,6 @@
 package resolver
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
 	"github.com/stretchr/testify/assert"
@@ -38,34 +37,33 @@ func generateTestData() TestData {
 	allowAccessToTmpBucketPolicy := hubble.PolicyReference{Arn: "arn:aws:iam::478824949770:allowAccessToTmpBucketPolicy/access-to-tmp-bucket"}
 
 	biAnalystRole := hubble.Role{
-		Name:"bi_analyst",
-		GrantedDatabases:[]*hubble.Database{&unstable},
-		GrantedDevDatabases:[]*hubble.DevDatabase{},
-		GrantedGlueDatabases:[]*hubble.GlueDatabase{},
-		Acl:[]hubble.DataSet{"bi", "core"},
+		Name:                 "bi_analyst",
+		GrantedDatabases:     []*hubble.Database{&unstable},
+		GrantedDevDatabases:  []*hubble.DevDatabase{},
+		GrantedGlueDatabases: []*hubble.GlueDatabase{},
+		Acl:                  []hubble.DataSet{"bi", "core"},
 	}
 
 	dbtDeveloperRole := hubble.Role{
-		Name:"dbt_developer",
-		GrantedDatabases:[]*hubble.Database{},
-		GrantedDevDatabases:[]*hubble.DevDatabase{&dev},
-		GrantedGlueDatabases:[]*hubble.GlueDatabase{},
-		Acl:[]hubble.DataSet{"bi", "core"},
-		Policies: []*hubble.PolicyReference{&allowAccessToTmpBucketPolicy},
+		Name:                 "dbt_developer",
+		GrantedDatabases:     []*hubble.Database{&unstable},
+		GrantedDevDatabases:  []*hubble.DevDatabase{&dev},
+		GrantedGlueDatabases: []*hubble.GlueDatabase{},
+		Acl:                  []hubble.DataSet{"bi", "core"},
+		Policies:             []*hubble.PolicyReference{&allowAccessToTmpBucketPolicy},
 	}
 
 	biAnalyst := hubble.User{
-		Username:"jwr",
-		Email:"jwr@lunar.app",
-		AssignedTo:[]*hubble.Role{&biAnalystRole},
+		Username:   "jwr",
+		Email:      "jwr@lunar.app",
+		AssignedTo: []*hubble.Role{&biAnalystRole},
 	}
 
 	dbtDeveloper := hubble.User{
-		Username:"nra",
-		Email:"nra@lunar.app",
-		AssignedTo:[]*hubble.Role{&dbtDeveloperRole},
+		Username:   "nra",
+		Email:      "nra@lunar.app",
+		AssignedTo: []*hubble.Role{&dbtDeveloperRole},
 	}
-
 
 	return TestData{
 		unstable:                     unstable,
@@ -86,22 +84,20 @@ func Test_DbtDeveloper(t *testing.T) {
 	data := generateTestData()
 
 	model := hubble.Model{
-		Databases: []*hubble.Database{&data.unstable},
+		Databases:    []*hubble.Database{&data.unstable},
 		DevDatabases: []*hubble.DevDatabase{&data.dev},
-		GlueDatabases: []*hubble.GlueDatabase{&data.lwgoeventsDatabase},
-		Users:         []*hubble.User{&data.dbtDeveloper},
-		Roles:         []*hubble.Role{&data.dbtDeveloperRole},
-		Policies: []*hubble.PolicyReference{&data.allowAccessToTmpBucketPolicy},
+		Users:        []*hubble.User{&data.dbtDeveloper},
+		Roles:        []*hubble.Role{&data.dbtDeveloperRole},
+		Policies:     []*hubble.PolicyReference{&data.allowAccessToTmpBucketPolicy},
 	}
 
 	resolver := Resolver{}
-	resolved, _ := resolver.Resolve(model)
-	b, _ := json.MarshalIndent(resolved, "", "   ")
-	fmt.Printf("%s\n", b)
+	redshiftModel, iamModel, googleModel := resolver.Resolve(model)
+	t.Log(redshiftModel)
 
 	dbUsername := fmt.Sprintf("%s_%s", data.dbtDeveloper.Username, data.dbtDeveloperRole.Name)
 
-	cluster := resolved.RedshiftModel.LookupCluster(data.dev.ClusterIdentifier)
+	cluster := redshiftModel.LookupCluster(data.dev.ClusterIdentifier)
 	database := cluster.LookupDatabase(data.dbtDeveloper.Username)
 	assert.NotNil(database, "database is registered")
 
@@ -112,11 +108,11 @@ func Test_DbtDeveloper(t *testing.T) {
 	dbUser := database.LookupUser(dbUsername)
 	assert.NotNil(dbUser, "a user name of the role and user has been registered")
 
-	user := resolved.GoogleModel.LookupUser(data.dbtDeveloper.Email)
+	user := googleModel.LookupUser(data.dbtDeveloper.Email)
 	assert.NotNil(user, "google login is registered")
 	assert.Equal([]string{data.dbtDeveloperRole.Name}, user.AssignedTo(), "google login has been assigned the expected role")
 
-	role := resolved.IamModel.LookupRole(data.dbtDeveloperRole.Name)
+	role := iamModel.LookupRole(data.dbtDeveloperRole.Name)
 	assert.NotNil(role, "AWS role for the role has been created")
 
 	referencedPolicy := role.LookupReferencedPolicy(data.allowAccessToTmpBucketPolicy.Arn)
@@ -139,36 +135,33 @@ func Test_BiAnalyst(t *testing.T) {
 	data := generateTestData()
 
 	model := hubble.Model{
-		Databases: []*hubble.Database{&data.unstable},
+		Databases:    []*hubble.Database{&data.unstable},
 		DevDatabases: []*hubble.DevDatabase{},
-		GlueDatabases: []*hubble.GlueDatabase{},
-		Users:         []*hubble.User{&data.biAnalyst},
-		Roles:         []*hubble.Role{&data.biAnalystRole},
+		Users:        []*hubble.User{&data.biAnalyst},
+		Roles:        []*hubble.Role{&data.biAnalystRole},
 	}
 
 	resolver := Resolver{}
-	resolved, _ := resolver.Resolve(model)
-	b, _ := json.MarshalIndent(resolved, "", "   ")
-	fmt.Printf("%s\n", b)
+	redshiftModel, iamModel, googleModel := resolver.Resolve(model)
 
 	dbUsername := fmt.Sprintf("%s_%s", data.biAnalyst.Username, data.biAnalystRole.Name)
 
-	cluster := resolved.RedshiftModel.LookupCluster(data.unstable.ClusterIdentifier)
+	cluster := redshiftModel.LookupCluster(data.unstable.ClusterIdentifier)
 	database := cluster.LookupDatabase(data.unstable.Name)
 	assert.NotNil(database, "database is registered")
 
-	group := cluster.LookupGroup(data.biAnalystRole.Name)
+	group := database.LookupGroup(data.biAnalystRole.Name)
 	assert.NotNil(group, "a user group with the name of the role has been registered")
-	assert.Contains(group.Granted(),"bi", "group has been granted access to the expected schemas")
+	assert.Contains(group.Granted(), "bi", "group has been granted access to the expected schemas")
 
 	dbUser := database.LookupUser(dbUsername)
 	assert.NotNil(dbUser, "a user name of the role and user has been registered")
 
-	user := resolved.GoogleModel.LookupUser(data.biAnalyst.Email)
+	user := googleModel.LookupUser(data.biAnalyst.Email)
 	assert.NotNil(user, "google login is registered")
 	assert.Equal([]string{data.biAnalystRole.Name}, user.AssignedTo(), "google login has been assigned the expected role")
 
-	role := resolved.IamModel.LookupRole(data.biAnalystRole.Name)
+	role := iamModel.LookupRole(data.biAnalystRole.Name)
 	assert.NotNil(role, "AWS role for the role has been created")
 
 	policy := role.LookupDatabaseLoginPolicyForUser(data.biAnalyst.Email)

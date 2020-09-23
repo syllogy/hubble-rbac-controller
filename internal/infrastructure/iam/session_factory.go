@@ -12,18 +12,17 @@ type SessionFactory interface {
 }
 
 type LocalStackSessionFactory struct {
-
 }
 
 type AwsSessionFactory struct {
-
 }
+
 func (f LocalStackSessionFactory) CreateSession() *session.Session {
 	return session.Must(session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{
-			Credentials:      credentials.NewStaticCredentials("foo", "var", ""),
-			Region:           aws.String(endpoints.EuWest1RegionID),
-			Endpoint:         aws.String("http://localhost:4593"),
+			Credentials: credentials.NewStaticCredentials("foo", "var", ""),
+			Region:      aws.String(endpoints.EuWest1RegionID),
+			Endpoint:    aws.String("http://localhost:4593"),
 		},
 	}))
 }
@@ -33,4 +32,3 @@ func (f AwsSessionFactory) CreateSession() *session.Session {
 		SharedConfigState: session.SharedConfigEnable,
 	}))
 }
-

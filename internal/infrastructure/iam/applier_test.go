@@ -3,19 +3,20 @@
 package iam
 
 import (
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/iam"
 	iamCore "github.com/lunarway/hubble-rbac-controller/internal/core/iam"
-	log "github.com/sirupsen/logrus"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 )
 
 //YOU MUST RUN docker-compose up PRIOR TO RUNNING THIS TEST
 
-
 type TestContext struct {
-	applier *Applier
-	client *Client
+	applier       *Applier
+	client        *Client
 	eventRecorder *EventRecorder
 }
 
@@ -28,17 +29,49 @@ func failOnError(err error) {
 	}
 }
 
-func init() {
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.InfoLevel)
+func (client *Client) createUnmanagedPolicy(name string, document string) (*iam.Policy, error) {
+
+	c := iam.New(client.session)
+
+	response, err := c.ListPolicies(&iam.ListPoliciesInput{
+		MaxItems: aws.Int64(5000),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.assertNotTruncated(response.IsTruncated)
+
+	if err != nil {
+		return nil, err
+	}
+
+	policies := response.Policies
+
+	policy := client.lookupPolicy(policies, name)
+	if policy != nil {
+		return policy, nil
+	}
+	createPolicyResponse, err := c.CreatePolicy(&iam.CreatePolicyInput{
+		Description:    aws.String(""),
+		PolicyDocument: &document,
+		PolicyName:     &name,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to create policy %s: %w", name, err)
+	}
+
+	return createPolicyResponse.Policy, nil
 }
 
-func setUp() TestContext {
+func setUp(t *testing.T) TestContext {
 
 	session := LocalStackSessionFactory{}.CreateSession()
 	iamClient := New(session)
 	eventRecorder := EventRecorder{}
-	applier := NewApplier(iamClient, accountId, region, &eventRecorder)
+	logger := infrastructure.NewLogger(t)
+	applier := NewApplier(iamClient, accountId, region, &eventRecorder, logger)
 
 	roles, err := iamClient.ListRoles()
 	failOnError(err)
@@ -59,19 +92,19 @@ func setUp() TestContext {
 	eventRecorder.Reset()
 
 	return TestContext{
-		applier: applier,
-		client:  iamClient,
+		applier:       applier,
+		client:        iamClient,
 		eventRecorder: &eventRecorder,
 	}
 }
 
 func TestApplier_NoRoles(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
-	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{}})
+	err := context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{}})
 	assert.NoError(err)
 
 	actual := FetchIAMState(context.client)
@@ -84,18 +117,18 @@ func TestApplier_NoRoles(t *testing.T) {
 
 func TestApplier_SingleRole(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
-	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
-			Name:                  "BiAnalyst",
+			Name: "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
 				{
 					Email:            "jwr@lunar.app",
 					DatabaseUsername: "jwr_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "jwr",
@@ -119,18 +152,18 @@ func TestApplier_SingleRole(t *testing.T) {
 
 func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
-	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
-			Name:                  "BiAnalyst",
+			Name: "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
 				{
 					Email:            "jwr@lunar.app",
 					DatabaseUsername: "jwr_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "jwr",
@@ -158,18 +191,18 @@ func TestApplier_SingleRoleTwoDatabases(t *testing.T) {
 
 func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
-	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
-			Name:                  "BiAnalyst",
+			Name: "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
 				{
 					Email:            "jwr@lunar.app",
 					DatabaseUsername: "jwr_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "jwr",
@@ -179,7 +212,7 @@ func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 				{
 					Email:            "nra@lunar.app",
 					DatabaseUsername: "nra_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "nra",
@@ -201,21 +234,20 @@ func TestApplier_SingleRoleTwoUsers(t *testing.T) {
 	assert.Equal(2, context.eventRecorder.Count(PolicyCreated))
 }
 
-
 func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
-	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
-			Name:                  "BiAnalyst",
+			Name: "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
 				{
 					Email:            "jwr@lunar.app",
 					DatabaseUsername: "jwr_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "jwr",
@@ -228,14 +260,14 @@ func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
 	assert.NoError(err)
 
-	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err = context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
-			Name:                  "BiAnalyst",
+			Name: "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
 				{
 					Email:            "jwr@lunar.app",
 					DatabaseUsername: "jwr_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "jwr",
@@ -264,18 +296,18 @@ func TestApplier_SingleRoleAddAnotherDatabase(t *testing.T) {
 
 func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
-	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
-			Name:                  "BiAnalyst",
+			Name: "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
 				{
 					Email:            "jwr@lunar.app",
 					DatabaseUsername: "jwr_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "jwr",
@@ -293,11 +325,11 @@ func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
 	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst"}}
 	AssertState(assert, actual, expected, "IAM role has not attached policies")
 
-	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err = context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
 			Name:                  "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{},
-			},
+		},
 	}})
 	failOnError(err)
 
@@ -308,11 +340,11 @@ func TestApplier_RemoveUserWillRemoveAccess(t *testing.T) {
 
 func TestApplier_RoleWithNoUsers(t *testing.T) {
 
-	context := setUp()
+	context := setUp(t)
 
 	assert := assert.New(t)
 
-	err := context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err := context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
 			Name:                  "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{},
@@ -326,9 +358,9 @@ func TestApplier_RoleWithNoUsers(t *testing.T) {
 	AssertState(assert, actual, expected, "IAM role has not attached policies")
 }
 
-
 func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
-	context := setUp()
+
+	context := setUp(t)
 
 	assert := assert.New(t)
 
@@ -351,17 +383,17 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
     ]
 }
 `
-	_, err := context.client.createOrUpdatePolicy("access-to-tmp-bucket", policyDocument)
+	_, err := context.client.createUnmanagedPolicy("access-to-tmp-bucket", policyDocument)
 	failOnError(err)
 
-	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err = context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
-			Name:                  "BiAnalyst",
+			Name: "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
 				{
 					Email:            "jwr@lunar.app",
 					DatabaseUsername: "jwr_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "jwr",
@@ -369,7 +401,7 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 					},
 				},
 			},
-			Policies: []*iamCore.PolicyReference{{Arn:"arn:aws:iam::000000000000:policy/hubble-rbac/access-to-tmp-bucket"}},
+			Policies: []*iamCore.PolicyReference{{Arn: "arn:aws:iam::000000000000:policy/access-to-tmp-bucket"}},
 		},
 	}})
 
@@ -380,14 +412,14 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst", "access-to-tmp-bucket"}}
 	AssertState(assert, actual, expected, "IAM role have been created")
 
-	err = context.applier.Apply(iamCore.Model{Roles:[]*iamCore.AwsRole{
+	err = context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
 		{
-			Name:                  "BiAnalyst",
+			Name: "BiAnalyst",
 			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
 				{
 					Email:            "jwr@lunar.app",
 					DatabaseUsername: "jwr_bianalyst",
-					Databases:        []*iamCore.Database{
+					Databases: []*iamCore.Database{
 						{
 							ClusterIdentifier: "dev",
 							Name:              "jwr",
@@ -402,7 +434,67 @@ func TestApplier_UserWithReferencedUnmanagedPolicies(t *testing.T) {
 
 	actual = FetchIAMState(context.client)
 	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst"}}
-	AssertState(assert, actual, expected, "IAM role have been created")
-
+	AssertState(assert, actual, expected, "policy have been detached")
 }
 
+func TestApplier_UserWithReferencedUnmanagedPoliciesCanBeDeleted(t *testing.T) {
+
+	context := setUp(t)
+
+	assert := assert.New(t)
+
+	policyDocument := `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket"
+            ],
+            "Resource": [
+                "arn:aws:s3:::lunarway-prod-data-tmp/*"
+            ]
+        }
+    ]
+}
+`
+	_, err := context.client.createUnmanagedPolicy("access-to-tmp-bucket", policyDocument)
+	failOnError(err)
+
+	err = context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{
+		{
+			Name: "BiAnalyst",
+			DatabaseLoginPolicies: []*iamCore.DatabaseLoginPolicy{
+				{
+					Email:            "jwr@lunar.app",
+					DatabaseUsername: "jwr_bianalyst",
+					Databases: []*iamCore.Database{
+						{
+							ClusterIdentifier: "dev",
+							Name:              "jwr",
+						},
+					},
+				},
+			},
+			Policies: []*iamCore.PolicyReference{{Arn: "arn:aws:iam::000000000000:policy/access-to-tmp-bucket"}},
+		},
+	}})
+
+	assert.NoError(err)
+
+	actual := FetchIAMState(context.client)
+	expected := IAMState{}
+	expected.Roles = map[string][]string{"BiAnalyst": {"jwr_bianalyst", "access-to-tmp-bucket"}}
+	AssertState(assert, actual, expected, "IAM role have been created")
+
+	err = context.applier.Apply(iamCore.Model{Roles: []*iamCore.AwsRole{}})
+	assert.NoError(err)
+
+	actual = FetchIAMState(context.client)
+	expected.Roles = map[string][]string{}
+	AssertState(assert, actual, expected, "IAM role has been deleted")
+}

@@ -4,17 +4,17 @@ package service
 
 import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/hubble"
+	redshiftCore "github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
+	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/google"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/iam"
 	"github.com/lunarway/hubble-rbac-controller/internal/infrastructure/redshift"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
-var ServiceAccountFilePath = os.Getenv("GOOGLE_CREDENTIALS_FILE_PATH")
 const accountId = "478824949770"
 const region = "eu-west-1"
 
@@ -75,37 +75,24 @@ func setUp() {
 	}
 }
 
-
 func TestApplier_Apply(t *testing.T) {
 
 	setUp()
 
 	assert := assert.New(t)
 
-	excludedUsers := []string{
-		"lunarway",
-	}
-	clientGroup := redshift.NewClientGroup(map[string]*redshift.ClusterCredentials{"hubble": &localhostCredentials})
+	logger := infrastructure.NewLogger(t)
+
+	excludedUsers := []string{"lunarway"}
+	excludedDatabases := []string{"template0", "template1", "postgres", "padb_harvest"}
+	clientGroup := redshift.NewClientGroupForTest(&localhostCredentials)
+	redshiftApplier := redshift.NewApplier(clientGroup, redshiftCore.NewExclusions(excludedDatabases, excludedUsers), accountId, logger, redshiftCore.DefaultReconcilerConfig())
+
+	googleApplier := google.NewNoOpApplier()
 
 	session := iam.LocalStackSessionFactory{}.CreateSession()
 	iamClient := iam.New(session)
-
-	jsonCredentials, err := ioutil.ReadFile(ServiceAccountFilePath)
-	if err != nil {
-		log.Fatalf("Unable to retrieve users in domain: %v", err)
-	}
-	googleClient, _ := google.NewGoogleClient(jsonCredentials, "jwr@chatjing.com", "478824949770")
-
-	redshiftClient, err := redshift.NewClient(
-		localhostCredentials.Username,
-		localhostCredentials.Password,
-		localhostCredentials.Host,
-		"prod",
-		localhostCredentials.Sslmode,
-		localhostCredentials.Port,
-		localhostCredentials.ExternalSchemasSupported,
-		)
-	failOnError(err)
+	iamApplier := iam.NewApplier(iamClient, accountId, region, &IamEventRecorder{logger: logger}, logger)
 
 	redshiftExpected := redshift.NewRedshiftState()
 	redshiftExpected.Users = []string{"lunarway"}
@@ -113,7 +100,12 @@ func TestApplier_Apply(t *testing.T) {
 
 	iamExpected := iam.IAMState{}
 
-	applier := NewApplier(clientGroup, iamClient, googleClient, excludedUsers, accountId, region)
+	applier := NewApplier(iamApplier, googleApplier, redshiftApplier, logger)
+
+	redshiftModel := redshiftCore.Model{}
+	redshiftModel.DeclareCluster("hubble")
+	err := redshiftApplier.Apply(redshiftModel, false)
+	failOnError(err)
 
 	model := hubble.Model{}
 	user := model.AddUser("jwr", "jwr@lunar.app")
@@ -123,6 +115,17 @@ func TestApplier_Apply(t *testing.T) {
 	log.Info("Create database")
 	database := model.AddDatabase("hubble", "prod")
 	err = applier.Apply(model, false)
+	failOnError(err)
+
+	redshiftClient, err := redshift.NewClient(
+		localhostCredentials.Username,
+		localhostCredentials.Password,
+		localhostCredentials.Host,
+		"prod",
+		localhostCredentials.Sslmode,
+		localhostCredentials.Port,
+		localhostCredentials.ExternalSchemasSupported,
+	)
 	failOnError(err)
 
 	redshiftActual := redshift.FetchState(redshiftClient)
@@ -159,7 +162,7 @@ func TestApplier_Apply(t *testing.T) {
 	redshiftExpected.Users = []string{"lunarway", "jwr_bianalyst"}
 	redshiftExpected.Groups = []string{"bianalyst"}
 	redshiftExpected.GroupMemberships = map[string][]string{"lunarway": {}, "jwr_bianalyst": {"bianalyst"}}
-	redshiftExpected.Grants = map[string][]string{"bianalyst": {"public","public_bi"}}
+	redshiftExpected.Grants = map[string][]string{"bianalyst": {"public", "public_bi"}}
 	redshiftActual = redshift.FetchState(redshiftClient)
 	redshift.AssertState(assert, redshiftActual, redshiftExpected, "user,groups and grants have been created")
 

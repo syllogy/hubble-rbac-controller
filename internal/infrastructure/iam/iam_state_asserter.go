@@ -14,20 +14,25 @@ func FetchIAMState(client *Client) IAMState {
 
 	result := make(map[string][]string)
 
-	for _,role := range roles {
+	for _, role := range roles {
 		policies := []string{}
 
 		attachedPolicies, _ := client.ListManagedAttachedPolicies(role)
 
-		for _,policy := range attachedPolicies {
+		for _, policy := range attachedPolicies {
+			policies = append(policies, *policy.PolicyName)
+		}
+
+		attachedPolicies, _ = client.ListUnmanagedAttachedPolicies(role)
+		for _, policy := range attachedPolicies {
 			policies = append(policies, *policy.PolicyName)
 		}
 
 		result[*role.RoleName] = policies
 	}
 
-	return IAMState {
-		Roles:result,
+	return IAMState{
+		Roles: result,
 	}
 }
 

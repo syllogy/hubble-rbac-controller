@@ -10,7 +10,7 @@ type Model struct {
 }
 
 func (m *Model) LookupUser(email string) *User {
-	for _,p := range m.Users {
+	for _, p := range m.Users {
 		if p.Email == email {
 			return p
 		}
@@ -24,7 +24,7 @@ func (m *Model) DeclareUser(email string) *User {
 		return existing
 	}
 
-	newUser := &User { Email:email, Roles: make(map[string]bool)  }
+	newUser := &User{Email: email, Roles: make(map[string]bool)}
 	m.Users = append(m.Users, newUser)
 	return newUser
 }
@@ -40,4 +40,3 @@ func (g *User) AssignedTo() []string {
 	}
 	return roles
 }
-

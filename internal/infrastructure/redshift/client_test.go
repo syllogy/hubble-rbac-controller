@@ -2,7 +2,6 @@
 
 package redshift
 
-
 //YOU MUST RUN docker-compose up PRIOR TO RUNNING THIS TEST
 
 import (
@@ -17,10 +16,10 @@ func TestClient_CreateUser(t *testing.T) {
 	assert := assert.New(t)
 
 	schema := "public"
-	groupName := "bianalyst"
+	groupName := "clienttest"
 	username := strings.ToLower(utils.GenerateRandomString(10))
 
-	client, _ := NewClient("lunarway","lunarway","localhost","lunarway", "disable", 5432, false)
+	client, _ := NewClient("lunarway", "lunarway", "localhost", "lunarway", "disable", 5432, false)
 
 	err := client.CreateGroup(groupName)
 	assert.NoError(err)
@@ -58,4 +57,3 @@ func TestClient_CreateUser(t *testing.T) {
 	err = client.DeleteUser(username)
 	assert.NoError(err)
 }
-

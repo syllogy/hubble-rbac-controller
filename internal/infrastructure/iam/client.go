@@ -16,7 +16,7 @@ type Client struct {
 }
 
 func New(session *session.Session) *Client {
-	return &Client{session:session}
+	return &Client{session: session}
 }
 
 func (client *Client) assertNotTruncated(truncated *bool) error {
@@ -27,7 +27,7 @@ func (client *Client) assertNotTruncated(truncated *bool) error {
 }
 
 func (client *Client) lookupPolicy(policies []*iam.Policy, name string) *iam.Policy {
-	for _,r := range policies {
+	for _, r := range policies {
 		if *r.PolicyName == name {
 			return r
 		}
@@ -36,7 +36,7 @@ func (client *Client) lookupPolicy(policies []*iam.Policy, name string) *iam.Pol
 }
 
 func (client *Client) lookupAttachedPolicy(policies []*iam.AttachedPolicy, name string) *iam.AttachedPolicy {
-	for _,r := range policies {
+	for _, r := range policies {
 		if *r.PolicyName == name {
 			return r
 		}
@@ -45,7 +45,7 @@ func (client *Client) lookupAttachedPolicy(policies []*iam.AttachedPolicy, name 
 }
 
 func (client *Client) lookupAttachedPolicyByArn(policies []*iam.AttachedPolicy, arn string) *iam.AttachedPolicy {
-	for _,r := range policies {
+	for _, r := range policies {
 		if *r.PolicyArn == arn {
 			return r
 		}
@@ -54,7 +54,7 @@ func (client *Client) lookupAttachedPolicyByArn(policies []*iam.AttachedPolicy, 
 }
 
 func (client *Client) lookupRole(roles []*iam.Role, name string) *iam.Role {
-	for _,r := range roles {
+	for _, r := range roles {
 		if *r.RoleName == name {
 			return r
 		}
@@ -62,12 +62,11 @@ func (client *Client) lookupRole(roles []*iam.Role, name string) *iam.Role {
 	return nil
 }
 
-
 func (client *Client) ListRoles() ([]*iam.Role, error) {
 	c := iam.New(client.session)
 	maxItems := int64(500)
 	response, err := c.ListRoles(&iam.ListRolesInput{
-		MaxItems:&maxItems,
+		MaxItems:   &maxItems,
 		PathPrefix: &iamPrefix,
 	})
 
@@ -90,8 +89,8 @@ func (client *Client) ListPolicies() ([]*iam.Policy, error) {
 	c := iam.New(client.session)
 	maxItems := int64(500)
 	response, err := c.ListPolicies(&iam.ListPoliciesInput{
-		MaxItems:&maxItems,
-		PathPrefix:&iamPrefix,
+		MaxItems:   &maxItems,
+		PathPrefix: &iamPrefix,
 	})
 
 	if err != nil {
@@ -154,7 +153,6 @@ func (client *Client) ListUnmanagedAttachedPolicies(role *iam.Role) ([]*iam.Atta
 	return result, nil
 }
 
-
 func (client *Client) GetPolicy(policy *iam.AttachedPolicy) (*iam.Policy, error) {
 
 	c := iam.New(client.session)
@@ -185,7 +183,6 @@ func (client *Client) lookupPolicyByArn(arn string) (*iam.Policy, error) {
 	return response.Policy, nil
 }
 
-
 func (client *Client) GetPolicyDocuments() (map[string]string, error) {
 
 	result := make(map[string]string)
@@ -196,7 +193,7 @@ func (client *Client) GetPolicyDocuments() (map[string]string, error) {
 	localManagedPolicy := "LocalManagedPolicy"
 
 	response, err := c.GetAccountAuthorizationDetails(&iam.GetAccountAuthorizationDetailsInput{
-		Filter: []*string{&localManagedPolicy},
+		Filter:   []*string{&localManagedPolicy},
 		MaxItems: &maxItems,
 	})
 
@@ -264,7 +261,7 @@ func (client *Client) attachPolicy(role *iam.Role, policy *iam.Policy) error {
 	if client.lookupAttachedPolicy(attachedPolicies, *policy.PolicyName) == nil {
 		_, err := c.AttachRolePolicy(&iam.AttachRolePolicyInput{
 			PolicyArn: policy.Arn,
-			RoleName: role.RoleName,
+			RoleName:  role.RoleName,
 		})
 
 		if err != nil {
@@ -290,7 +287,32 @@ func (client *Client) DetachPolicy(role *iam.Role, policy *iam.AttachedPolicy) e
 
 		_, err := c.DetachRolePolicy(&iam.DetachRolePolicyInput{
 			PolicyArn: policy.PolicyArn,
-			RoleName: role.RoleName,
+			RoleName:  role.RoleName,
+		})
+
+		if err != nil {
+			return fmt.Errorf("unable to detach policy %s from role %s: %w", *policy.PolicyName, *role.RoleName, err)
+		}
+	}
+
+	return nil
+}
+
+func (client *Client) DetachUnmanagedPolicy(role *iam.Role, policy *iam.AttachedPolicy) error {
+
+	c := iam.New(client.session)
+
+	attachedPolicies, err := client.ListUnmanagedAttachedPolicies(role)
+
+	if err != nil {
+		return fmt.Errorf("unable to list attached policies: %w", err)
+	}
+
+	if client.lookupAttachedPolicy(attachedPolicies, *policy.PolicyName) != nil {
+
+		_, err := c.DetachRolePolicy(&iam.DetachRolePolicyInput{
+			PolicyArn: policy.PolicyArn,
+			RoleName:  role.RoleName,
 		})
 
 		if err != nil {
@@ -377,7 +399,7 @@ func (client *Client) CreateOrUpdateLoginRole(name string) (*iam.Role, error) {
 	response, err := c.CreateRole(&iam.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(strings.TrimSpace(assumeRolePolicyDocument)),
 		Description:              aws.String("test"),
-		MaxSessionDuration: 	  &maxSessionDuration,
+		MaxSessionDuration:       &maxSessionDuration,
 		Path:                     &iamPrefix,
 		RoleName:                 &name,
 	})
@@ -405,7 +427,7 @@ func (client *Client) DeleteLoginRole(role *iam.Role) error {
 		return nil
 	}
 
-	_, err = c.DeleteRole(&iam.DeleteRoleInput{RoleName:role.RoleName})
+	_, err = c.DeleteRole(&iam.DeleteRoleInput{RoleName: role.RoleName})
 
 	if err != nil {
 		return fmt.Errorf("unable to delete role %s: %w", *role.RoleName, err)
