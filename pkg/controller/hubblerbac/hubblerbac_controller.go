@@ -87,11 +87,11 @@ func Add(mgr manager.Manager) error {
 		return fmt.Errorf("unable to create applier: %w", err)
 	}
 
-	return add(mgr, newReconciler(mgr, applier))
+	return add(mgr, newReconciler(mgr, applier, conf.DryRun))
 }
 
-func newReconciler(mgr manager.Manager, applier *service.Applier) reconcile.Reconciler {
-	return &ReconcileHubbleRbac{client: mgr.GetClient(), scheme: mgr.GetScheme(), applier: applier}
+func newReconciler(mgr manager.Manager, applier *service.Applier, dryRun bool) reconcile.Reconciler {
+	return &ReconcileHubbleRbac{client: mgr.GetClient(), scheme: mgr.GetScheme(), applier: applier, dryRun: dryRun}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -120,6 +120,7 @@ type ReconcileHubbleRbac struct {
 	client  client.Client
 	scheme  *runtime.Scheme
 	applier *service.Applier
+	dryRun  bool
 }
 
 func (r *ReconcileHubbleRbac) setStatusFailed(instance *lunarwayv1alpha1.HubbleRbac, err error, logger logr.Logger) {
@@ -160,7 +161,7 @@ func (r *ReconcileHubbleRbac) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, nil //don't reschedule, if we can't construct the hubble model from the CR it is a permanent problem
 	}
 
-	err = r.applier.Apply(model, false)
+	err = r.applier.Apply(model, r.dryRun)
 	if err != nil {
 		r.setStatusFailed(instance, err, reqLogger)
 		return reconcile.Result{}, err
