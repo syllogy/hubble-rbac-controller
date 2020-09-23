@@ -3,6 +3,7 @@ package configuration
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type ErrorCollector struct {
@@ -33,6 +34,7 @@ type Configuration struct {
 	AwsAccountId              string
 	Region                    string
 	GoogleAdminPrincipalEmail string
+	DryRun                    bool
 }
 
 func loadVariable(name string, errorCollector *ErrorCollector) string {
@@ -44,9 +46,24 @@ func loadVariable(name string, errorCollector *ErrorCollector) string {
 	return value
 }
 
+func loadBool(name string, errorCollector *ErrorCollector) bool {
+	value, ok := os.LookupEnv(name)
+	if !ok {
+		errorCollector.Register(name)
+		return false
+	}
+	result, err := strconv.ParseBool(value)
+	if err != nil {
+		errorCollector.Register(name)
+		return false
+	}
+	return result
+}
+
 func LoadConfiguration() (Configuration, error) {
 
 	errorCollector := &ErrorCollector{}
+
 	result := Configuration{
 		GoogleCredentials:         loadVariable("GOOGLE_CREDENTIALS_FILE_PATH", errorCollector),
 		RedshiftHostTemplate:      "%s.cbhx6wm2xwwx.eu-west-1.redshift.amazonaws.com",
@@ -56,6 +73,7 @@ func LoadConfiguration() (Configuration, error) {
 		AwsAccountId:              loadVariable("AWS_ACCOUNT_ID", errorCollector),
 		GoogleAdminPrincipalEmail: loadVariable("GOOGLE_ADMIN_PRINCIPAL_EMAIL", errorCollector),
 		Region:                    "eu-west-1",
+		DryRun:                    loadBool("DRYRUN", errorCollector),
 	}
 
 	return result, errorCollector.Error()
