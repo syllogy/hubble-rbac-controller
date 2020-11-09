@@ -30,6 +30,7 @@ func createApplier(conf configuration.Configuration) (*service.Applier, error) {
 
 	excludedUsers := []string{
 		"produser",
+		"devuser",
 		"dev",
 		"inspari",
 		"looker",

@@ -27,9 +27,10 @@ type User struct {
 	email string
 }
 
-func (r AwsRoleCustomSchemaDTO) isManaged() bool {
-	return strings.Contains(r.Value, "/hubble-rbac/")
+func (r AwsRoleCustomSchemaDTO) isManaged(accountId string) bool {
+	return strings.Contains(r.Value, "/hubble-rbac/" + accountId)
 }
+
 
 // Build and returns an Admin SDK Directory service object authorized with
 // the service accounts that act on behalf of the given user.
@@ -177,7 +178,7 @@ func (client *Client) UpdateRoles(userId string, roles []string) error {
 	desiredRoles := client.createDTO(roles)
 
 	for _, r := range currentRoles.Roles {
-		if !r.isManaged() {
+		if !r.isManaged(client.awsAccountId) {
 			desiredRoles.Roles = append(desiredRoles.Roles, r)
 		}
 	}
