@@ -66,10 +66,10 @@ func LoadConfiguration() (Configuration, error) {
 
 	result := Configuration{
 		GoogleCredentials:         loadVariable("GOOGLE_CREDENTIALS_FILE_PATH", errorCollector),
-		RedshiftHostTemplate:      "%s.cbhx6wm2xwwx.eu-west-1.redshift.amazonaws.com",
+		RedshiftHostTemplate:      "%s." + loadVariable("REDSHIFT_HOST", errorCollector),
 		RedshiftUsername:          loadVariable("REDSHIFT_USERNAME", errorCollector),
 		RedshiftPassword:          loadVariable("REDSHIFT_PASSWORD", errorCollector),
-		RedshiftMasterDatabase:    "prod",
+		RedshiftMasterDatabase:    loadVariable("REDSHIFT_MASTER_DATABASE", errorCollector),
 		AwsAccountId:              loadVariable("AWS_ACCOUNT_ID", errorCollector),
 		GoogleAdminPrincipalEmail: loadVariable("GOOGLE_ADMIN_PRINCIPAL_EMAIL", errorCollector),
 		Region:                    "eu-west-1",

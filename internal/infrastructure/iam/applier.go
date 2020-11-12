@@ -158,7 +158,7 @@ func (applier *Applier) createAndAttachPolicy(role *iam.Role, name string, docum
 }
 
 func (applier *Applier) createRole(name string) (*iam.Role, error) {
-	return applier.client.CreateOrUpdateLoginRole(name)
+	return applier.client.CreateOrUpdateLoginRole(name, applier.accountId)
 }
 
 func (applier *Applier) updateRole(desiredRole *iamCore.AwsRole, currentRole *iam.Role, policyDocuments map[string]string) error {

@@ -356,7 +356,7 @@ func (client *Client) DeleteAttachedPolicy(policy *iam.AttachedPolicy) error {
 	return client.deletePolicy(*policy.PolicyName, *policy.PolicyArn)
 }
 
-func (client *Client) CreateOrUpdateLoginRole(name string) (*iam.Role, error) {
+func (client *Client) CreateOrUpdateLoginRole(name string, accountId string) (*iam.Role, error) {
 
 	c := iam.New(client.session)
 
@@ -383,7 +383,7 @@ func (client *Client) CreateOrUpdateLoginRole(name string) (*iam.Role, error) {
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::478824949770:saml-provider/GoogleApps"
+        "Federated": "arn:aws:iam::%s:saml-provider/GoogleApps"
       },
       "Action": "sts:AssumeRoleWithSAML",
       "Condition": {
@@ -397,7 +397,7 @@ func (client *Client) CreateOrUpdateLoginRole(name string) (*iam.Role, error) {
 `
 
 	response, err := c.CreateRole(&iam.CreateRoleInput{
-		AssumeRolePolicyDocument: aws.String(strings.TrimSpace(assumeRolePolicyDocument)),
+		AssumeRolePolicyDocument: aws.String(strings.TrimSpace(fmt.Sprintf(assumeRolePolicyDocument, accountId))),
 		Description:              aws.String("test"),
 		MaxSessionDuration:       &maxSessionDuration,
 		Path:                     &iamPrefix,
