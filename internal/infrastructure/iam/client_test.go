@@ -14,8 +14,6 @@ import (
 
 //YOU MUST RUN docker-compose up PRIOR TO RUNNING THIS TEST
 
-
-
 func init() {
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)

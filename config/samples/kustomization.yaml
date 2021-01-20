@@ -1,0 +1,4 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- hubble_v1alpha1_hubblerbac.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

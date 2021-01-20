@@ -1,0 +1,11 @@
+domain: lunar.tech
+layout: go.kubebuilder.io/v2
+projectName: hubble-rbac-controller
+repo: github.com/lunarway/hubble-rbac-controller
+resources:
+- group: hubble
+  kind: HubbleRbac
+  version: v1alpha1
+version: 3-alpha
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}

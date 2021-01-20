@@ -1,0 +1,7 @@
+apiVersion: hubble.lunar.tech/v1alpha1
+kind: HubbleRbac
+metadata:
+  name: hubblerbac-sample
+spec:
+  # Add fields here
+  foo: bar

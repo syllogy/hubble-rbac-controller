@@ -36,20 +36,19 @@ func (r AwsRolesCustomSchemaDTO) Distinct() AwsRolesCustomSchemaDTO {
 	}
 
 	var roles []AwsRoleCustomSchemaDTO
-	for _,role := range distinctRoles {
+	for _, role := range distinctRoles {
 		roles = append(roles, role)
 	}
 
-	return AwsRolesCustomSchemaDTO {
-		Roles:roles,
-		SessionDuration:r.SessionDuration,
+	return AwsRolesCustomSchemaDTO{
+		Roles:           roles,
+		SessionDuration: r.SessionDuration,
 	}
 }
 
 func (r AwsRoleCustomSchemaDTO) isManaged(accountId string) bool {
 	return strings.Contains(r.Value, "/hubble-rbac/") && strings.Contains(r.Value, accountId)
 }
-
 
 // Build and returns an Admin SDK Directory service object authorized with
 // the service accounts that act on behalf of the given user.

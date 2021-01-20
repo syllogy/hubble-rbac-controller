@@ -1,3 +1,8 @@
 .idea
 build/_output
 build/_test
+.env.local
+local.sh
+testbin
+bin
+*.out
