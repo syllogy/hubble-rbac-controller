@@ -1,0 +1,153 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: hubblerbacs.hubble.lunar.tech
+spec:
+  group: hubble.lunar.tech
+  names:
+    kind: HubbleRbac
+    listKind: HubbleRbacList
+    plural: hubblerbacs
+    singular: hubblerbac
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: HubbleRbac is the Schema for the hubblerbacs API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: HubbleRbacSpec defines the desired state of HubbleRbac
+          properties:
+            databases:
+              items:
+                properties:
+                  cluster:
+                    type: string
+                  database:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - cluster
+                - database
+                - name
+                type: object
+              type: array
+            devDatabases:
+              items:
+                properties:
+                  cluster:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - cluster
+                - name
+                type: object
+              type: array
+            policies:
+              items:
+                properties:
+                  arn:
+                    type: string
+                  name:
+                    type: string
+                required:
+                - arn
+                - name
+                type: object
+              type: array
+            roles:
+              items:
+                properties:
+                  databases:
+                    items:
+                      type: string
+                    type: array
+                  datalakeGrants:
+                    items:
+                      type: string
+                    type: array
+                  datawarehouseGrants:
+                    items:
+                      type: string
+                    type: array
+                  devDatabases:
+                    items:
+                      type: string
+                    type: array
+                  name:
+                    type: string
+                  policies:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - databases
+                - datalakeGrants
+                - datawarehouseGrants
+                - devDatabases
+                - name
+                - policies
+                type: object
+              type: array
+            users:
+              items:
+                properties:
+                  email:
+                    type: string
+                  name:
+                    type: string
+                  roles:
+                    items:
+                      type: string
+                    type: array
+                required:
+                - email
+                - name
+                - roles
+                type: object
+              type: array
+          required:
+          - databases
+          - devDatabases
+          - policies
+          - roles
+          - users
+          type: object
+        status:
+          description: HubbleRbacStatus defines the observed state of HubbleRbac
+          properties:
+            error:
+              type: string
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

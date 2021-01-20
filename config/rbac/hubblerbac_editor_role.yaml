@@ -1,0 +1,24 @@
+# permissions for end users to edit hubblerbacs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hubblerbac-editor-role
+rules:
+- apiGroups:
+  - hubble.lunar.tech
+  resources:
+  - hubblerbacs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hubble.lunar.tech
+  resources:
+  - hubblerbacs/status
+  verbs:
+  - get
