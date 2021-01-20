@@ -1,6 +1,6 @@
 domain: lunar.tech
 layout: go.kubebuilder.io/v2
-projectName: hubble-rbac-controller-new
+projectName: hubble-rbac-controller
 repo: github.com/lunarway/hubble-rbac-controller
 resources:
 - group: hubble
