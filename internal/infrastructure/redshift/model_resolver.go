@@ -21,7 +21,7 @@ func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshi
 
 	externalSchemas := map[string]string{}
 	for _, sourceName := range m.sources {
-		schemaName := strings.Replace(sourceName, "-", "", -1)
+		schemaName := strings.ReplaceAll(sourceName, "-", "")
 		externalSchemas[schemaName] = sourceName
 	}
 
