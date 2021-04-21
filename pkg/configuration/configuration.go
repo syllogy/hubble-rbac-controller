@@ -35,7 +35,7 @@ type Configuration struct {
 	AwsAccountId              string
 	Region                    string
 	GoogleAdminPrincipalEmail string
-	ExternalSchemas           []string
+	Sources                   []string
 	DryRun                    bool
 }
 
@@ -74,7 +74,7 @@ func LoadConfiguration() (Configuration, error) {
 		RedshiftMasterDatabase:    loadVariable("REDSHIFT_MASTER_DATABASE", errorCollector),
 		AwsAccountId:              loadVariable("AWS_ACCOUNT_ID", errorCollector),
 		GoogleAdminPrincipalEmail: loadVariable("GOOGLE_ADMIN_PRINCIPAL_EMAIL", errorCollector),
-		ExternalSchemas:           strings.Split(loadVariable("EXTERNAL_SCHEMAS", errorCollector), ","),
+		Sources:                   strings.Split(loadVariable("SOURCES", errorCollector), ","),
 		Region:                    "eu-west-1",
 		DryRun:                    loadBool("DRYRUN", errorCollector),
 	}

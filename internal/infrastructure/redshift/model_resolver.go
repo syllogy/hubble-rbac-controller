@@ -3,24 +3,26 @@ package redshift
 import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 	"golang.org/x/sync/errgroup"
+	"strings"
 )
 
 // The ModelResolver can query the clusters and resolve the current state and return it as a redshift.Model.
 type ModelResolver struct {
-	clientGroup     ClientGroup
-	excluded        *redshift.Exclusions
-	externalSchemas []string
+	clientGroup ClientGroup
+	excluded    *redshift.Exclusions
+	sources     []string
 }
 
-func NewModelResolver(clientGroup ClientGroup, excluded *redshift.Exclusions, externalSchemas []string) *ModelResolver {
-	return &ModelResolver{clientGroup: clientGroup, excluded: excluded, externalSchemas: externalSchemas}
+func NewModelResolver(clientGroup ClientGroup, excluded *redshift.Exclusions, sources []string) *ModelResolver {
+	return &ModelResolver{clientGroup: clientGroup, excluded: excluded, sources: sources}
 }
 
 func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshift.Cluster) error {
 
 	externalSchemas := map[string]string{}
-	for _, name := range m.externalSchemas {
-		externalSchemas[name] = name
+	for _, sourceName := range m.sources {
+		schemaName := strings.ReplaceAll(sourceName, "-", "")
+		externalSchemas[schemaName] = sourceName
 	}
 
 	clientPool := NewClientPool(m.clientGroup)
