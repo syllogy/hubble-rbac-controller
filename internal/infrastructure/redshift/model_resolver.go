@@ -7,22 +7,21 @@ import (
 
 // The ModelResolver can query the clusters and resolve the current state and return it as a redshift.Model.
 type ModelResolver struct {
-	clientGroup ClientGroup
-	excluded    *redshift.Exclusions
+	clientGroup     ClientGroup
+	excluded        *redshift.Exclusions
+	externalSchemas []string
 }
 
-func NewModelResolver(clientGroup ClientGroup, excluded *redshift.Exclusions) *ModelResolver {
-	return &ModelResolver{clientGroup: clientGroup, excluded: excluded}
+func NewModelResolver(clientGroup ClientGroup, excluded *redshift.Exclusions, externalSchemas []string) *ModelResolver {
+	return &ModelResolver{clientGroup: clientGroup, excluded: excluded, externalSchemas: externalSchemas}
 }
 
 func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshift.Cluster) error {
 
-	//TODO: find a solution that does not require hardcoding of the external schemas!
-	externalSchemas := map[string]string{
-		"lwgoevents":   "lw-go-events",
-		"eventstreams": "eventstreams",
-		"intercom":     "intercom",
-		"googlesheets": "google-sheets"}
+	externalSchemas := map[string]string{}
+	for _, name := range m.externalSchemas {
+		externalSchemas[name] = name
+	}
 
 	clientPool := NewClientPool(m.clientGroup)
 
