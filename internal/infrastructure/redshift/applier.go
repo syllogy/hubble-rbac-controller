@@ -12,15 +12,17 @@ type Applier struct {
 	excluded         *redshift.Exclusions
 	awsAccountId     string
 	logger           logr.Logger
+	externalSchemas  []string
 }
 
-func NewApplier(clientGroup ClientGroup, excluded *redshift.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshift.ReconcilerConfig) *Applier {
+func NewApplier(clientGroup ClientGroup, excluded *redshift.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshift.ReconcilerConfig, externalSchemas []string) *Applier {
 	return &Applier{
 		clientGroup:      clientGroup,
 		reconcilerConfig: reconcilerConfig,
 		excluded:         excluded,
 		awsAccountId:     awsAccountId,
 		logger:           logger,
+		externalSchemas:  externalSchemas,
 	}
 }
 
@@ -36,7 +38,7 @@ func (applier *Applier) Apply(model redshift.Model, dryRun bool) error {
 
 	defer clientPool.Close()
 
-	resolver := NewModelResolver(applier.clientGroup, applier.excluded)
+	resolver := NewModelResolver(applier.clientGroup, applier.excluded, applier.externalSchemas)
 	var taskRunner redshift.TaskRunner
 	if dryRun {
 		taskRunner = redshift.NewTaskPrinter(applier.logger)
