@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
+	"github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 	"github.com/lunarway/hubble-rbac-controller/internal/core/utils"
 	"net/url"
 )
@@ -138,6 +139,23 @@ func (c *Client) Users() ([]string, error) {
 
 func (c *Client) Schemas() ([]string, error) {
 	return c.stringList("select nspname from pg_catalog.pg_namespace WHERE nspname !~ '^pg_' AND nspname <> 'information_schema'")
+}
+
+func (c *Client) ExternalSchemas() ([]redshift.ExternalSchema, error) {
+	rows, err := c.stringRows("select schemaname, databasename from svv_external_schemas")
+	if err != nil {
+		return nil, err
+	}
+
+	var result []redshift.ExternalSchema
+	for _, row := range rows {
+		result = append(result, redshift.ExternalSchema{
+			Name:             row.Cells[0],
+			GlueDatabaseName: row.Cells[1],
+		})
+	}
+
+	return result, nil
 }
 
 func (c *Client) Databases() ([]string, error) {

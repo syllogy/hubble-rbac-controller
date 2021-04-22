@@ -6,23 +6,32 @@ import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 )
 
+type RedshiftClientFactoryAdapter struct {
+	clientPool *ClientPool
+}
+
+func (f *RedshiftClientFactoryAdapter) GetClusterClient(clusterIdentifier string) (RedshiftClient, error) {
+	return f.clientPool.GetClusterClient(clusterIdentifier)
+}
+func (f *RedshiftClientFactoryAdapter) GetDatabaseClient(clusterIdentifier string, databaseName string) (RedshiftClient, error) {
+	return f.clientPool.GetDatabaseClient(clusterIdentifier, databaseName)
+}
+
 type Applier struct {
 	reconcilerConfig redshift.ReconcilerConfig
 	clientGroup      ClientGroup
 	excluded         *redshift.Exclusions
 	awsAccountId     string
 	logger           logr.Logger
-	sources          []string
 }
 
-func NewApplier(clientGroup ClientGroup, excluded *redshift.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshift.ReconcilerConfig, sources []string) *Applier {
+func NewApplier(clientGroup ClientGroup, excluded *redshift.Exclusions, awsAccountId string, logger logr.Logger, reconcilerConfig redshift.ReconcilerConfig) *Applier {
 	return &Applier{
 		clientGroup:      clientGroup,
 		reconcilerConfig: reconcilerConfig,
 		excluded:         excluded,
 		awsAccountId:     awsAccountId,
 		logger:           logger,
-		sources:          sources,
 	}
 }
 
@@ -38,7 +47,7 @@ func (applier *Applier) Apply(model redshift.Model, dryRun bool) error {
 
 	defer clientPool.Close()
 
-	resolver := NewModelResolver(applier.clientGroup, applier.excluded, applier.sources)
+	resolver := NewModelResolver(&RedshiftClientFactoryAdapter{clientPool: clientPool}, applier.excluded)
 	var taskRunner redshift.TaskRunner
 	if dryRun {
 		taskRunner = redshift.NewTaskPrinter(applier.logger)
