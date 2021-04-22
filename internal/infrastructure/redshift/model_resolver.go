@@ -3,27 +3,19 @@ package redshift
 import (
 	"github.com/lunarway/hubble-rbac-controller/internal/core/redshift"
 	"golang.org/x/sync/errgroup"
-	"strings"
 )
 
 // The ModelResolver can query the clusters and resolve the current state and return it as a redshift.Model.
 type ModelResolver struct {
 	clientGroup ClientGroup
 	excluded    *redshift.Exclusions
-	sources     []string
 }
 
-func NewModelResolver(clientGroup ClientGroup, excluded *redshift.Exclusions, sources []string) *ModelResolver {
-	return &ModelResolver{clientGroup: clientGroup, excluded: excluded, sources: sources}
+func NewModelResolver(clientGroup ClientGroup, excluded *redshift.Exclusions) *ModelResolver {
+	return &ModelResolver{clientGroup: clientGroup, excluded: excluded}
 }
 
 func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshift.Cluster) error {
-
-	externalSchemas := map[string]string{}
-	for _, sourceName := range m.sources {
-		schemaName := strings.ReplaceAll(sourceName, "-", "")
-		externalSchemas[schemaName] = sourceName
-	}
 
 	clientPool := NewClientPool(m.clientGroup)
 
@@ -102,21 +94,25 @@ func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshi
 			}
 		}
 
+		externalSchemas, err := databaseClient.ExternalSchemas()
+		if err != nil {
+			return err
+		}
+
 		for _, group := range groups {
 			databaseGroup := database.DeclareGroup(group)
 
 			grants, err := databaseClient.Grants(group)
-
 			if err != nil {
 				return err
 			}
 
 			for _, schema := range grants {
 
-				glueDatabase, ok := externalSchemas[schema]
+				externalSchema, ok := lookupExternalSchema(schema, externalSchemas)
 
 				if ok {
-					databaseGroup.GrantExternalSchema(&redshift.ExternalSchema{Name: schema, GlueDatabaseName: glueDatabase})
+					databaseGroup.GrantExternalSchema(&externalSchema)
 				} else {
 					databaseGroup.GrantSchema(&redshift.Schema{Name: schema})
 				}
@@ -124,6 +120,15 @@ func (m *ModelResolver) resolveCluster(clusterIdentifier string, cluster *redshi
 		}
 	}
 	return nil
+}
+
+func lookupExternalSchema(name string, schemas []redshift.ExternalSchema) (redshift.ExternalSchema, bool) {
+	for _, schema := range schemas {
+		if schema.Name == name {
+			return schema, true
+		}
+	}
+	return redshift.ExternalSchema{}, false
 }
 
 // Queries the given clusters for their state and builds up a model representing the current state
