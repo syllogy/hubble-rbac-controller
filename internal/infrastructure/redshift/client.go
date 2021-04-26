@@ -142,6 +142,11 @@ func (c *Client) Schemas() ([]string, error) {
 }
 
 func (c *Client) ExternalSchemas() ([]redshift.ExternalSchema, error) {
+
+	if !c.externalSchemasSupported {
+		return []redshift.ExternalSchema{}, nil
+	}
+
 	rows, err := c.stringRows("select schemaname, databasename from svv_external_schemas")
 	if err != nil {
 		return nil, err

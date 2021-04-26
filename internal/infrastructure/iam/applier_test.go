@@ -32,22 +32,18 @@ func failOnError(err error) {
 func (client *Client) createUnmanagedPolicy(name string, document string) (*iam.Policy, error) {
 
 	c := iam.New(client.session)
+	var policies []*iam.Policy
 
-	response, err := c.ListPolicies(&iam.ListPoliciesInput{
+	err := c.ListPoliciesPages(&iam.ListPoliciesInput{
 		MaxItems: aws.Int64(5000),
+	}, func(page *iam.ListPoliciesOutput, lastPage bool) bool {
+		policies = append(policies, page.Policies...)
+		return true
 	})
 
 	if err != nil {
 		return nil, err
 	}
-
-	err = client.assertNotTruncated(response.IsTruncated)
-
-	if err != nil {
-		return nil, err
-	}
-
-	policies := response.Policies
 
 	policy := client.lookupPolicy(policies, name)
 	if policy != nil {

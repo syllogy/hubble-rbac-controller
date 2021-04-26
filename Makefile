@@ -133,3 +133,16 @@ bundle: manifests kustomize
 .PHONY: bundle-build
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+
+.PHONY: code/compile
+code/compile:
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -o=$(COMPILE_TARGET) ./cmd/manager
+
+.PHONY: test/unit
+test/unit:
+	go test ./internal/...
+
+.PHONY: test/integration
+test/integration:
+	go test -tags integration ./internal/...

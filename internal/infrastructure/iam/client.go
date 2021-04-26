@@ -19,13 +19,6 @@ func New(session *session.Session) *Client {
 	return &Client{session: session}
 }
 
-func (client *Client) assertNotTruncated(truncated *bool) error {
-	if *truncated {
-		return fmt.Errorf("internal error: Response was truncated, please increase page size or implement paging")
-	}
-	return nil
-}
-
 func (client *Client) lookupPolicy(policies []*iam.Policy, name string) *iam.Policy {
 	for _, r := range policies {
 		if *r.PolicyName == name {
@@ -63,74 +56,64 @@ func (client *Client) lookupRole(roles []*iam.Role, name string) *iam.Role {
 }
 
 func (client *Client) ListRoles() ([]*iam.Role, error) {
+	var result []*iam.Role
 	c := iam.New(client.session)
 	maxItems := int64(500)
-	response, err := c.ListRoles(&iam.ListRolesInput{
+	err := c.ListRolesPages(&iam.ListRolesInput{
 		MaxItems:   &maxItems,
 		PathPrefix: &iamPrefix,
+	}, func(page *iam.ListRolesOutput, lastPage bool) bool {
+		result = append(result, page.Roles...)
+		return true
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	err = client.assertNotTruncated(response.IsTruncated)
-
-	if err != nil {
-		return nil, err
-	}
-
-	log.Debug(response.String())
-
-	return response.Roles, nil
+	return result, nil
 }
 
 func (client *Client) ListPolicies() ([]*iam.Policy, error) {
+	var result []*iam.Policy
 	c := iam.New(client.session)
 	maxItems := int64(500)
-	response, err := c.ListPolicies(&iam.ListPoliciesInput{
+
+	err := c.ListPoliciesPages(&iam.ListPoliciesInput{
 		MaxItems:   &maxItems,
 		PathPrefix: &iamPrefix,
+	}, func(page *iam.ListPoliciesOutput, lastPage bool) bool {
+		result = append(result, page.Policies...)
+		return true
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debug(response.String())
-
-	err = client.assertNotTruncated(response.IsTruncated)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return response.Policies, nil
+	return result, nil
 }
 
 func (client *Client) listAttachedPolicies(role *iam.Role, prefix *string) ([]*iam.AttachedPolicy, error) {
 
+	var result []*iam.AttachedPolicy
 	c := iam.New(client.session)
 	maxItems := int64(500)
 
-	response, err := c.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
+	err := c.ListAttachedRolePoliciesPages(&iam.ListAttachedRolePoliciesInput{
 		MaxItems:   &maxItems,
 		PathPrefix: prefix,
 		RoleName:   role.RoleName,
+	}, func(page *iam.ListAttachedRolePoliciesOutput, lastPage bool) bool {
+		result = append(result, page.AttachedPolicies...)
+		return true
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("unable to list attached policies for %s: %w", *role.RoleName, err)
 	}
-	err = client.assertNotTruncated(response.IsTruncated)
 
-	if err != nil {
-		return nil, fmt.Errorf("unable to list attached policies for %s: %w", *role.RoleName, err)
-	}
-
-	log.Debug(response.String())
-
-	return response.AttachedPolicies, nil
+	return result, nil
 }
 
 func (client *Client) ListManagedAttachedPolicies(role *iam.Role) ([]*iam.AttachedPolicy, error) {
@@ -192,25 +175,22 @@ func (client *Client) GetPolicyDocuments() (map[string]string, error) {
 
 	localManagedPolicy := "LocalManagedPolicy"
 
-	response, err := c.GetAccountAuthorizationDetails(&iam.GetAccountAuthorizationDetailsInput{
+	input := &iam.GetAccountAuthorizationDetailsInput{
 		Filter:   []*string{&localManagedPolicy},
 		MaxItems: &maxItems,
+	}
+
+	err := c.GetAccountAuthorizationDetailsPages(input, func(page *iam.GetAccountAuthorizationDetailsOutput, lastPage bool) bool {
+		for _, policy := range page.Policies {
+			if *policy.Path == iamPrefix {
+				result[*policy.PolicyName] = *policy.PolicyVersionList[0].Document
+			}
+		}
+		return true
 	})
 
 	if err != nil {
 		return nil, err
-	}
-
-	err = client.assertNotTruncated(response.IsTruncated)
-
-	if err != nil {
-		return nil, err
-	}
-
-	for _, policy := range response.Policies {
-		if *policy.Path == iamPrefix {
-			result[*policy.PolicyName] = *policy.PolicyVersionList[0].Document
-		}
 	}
 
 	return result, nil
