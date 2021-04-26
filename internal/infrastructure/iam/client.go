@@ -192,25 +192,22 @@ func (client *Client) GetPolicyDocuments() (map[string]string, error) {
 
 	localManagedPolicy := "LocalManagedPolicy"
 
-	response, err := c.GetAccountAuthorizationDetails(&iam.GetAccountAuthorizationDetailsInput{
+	input := &iam.GetAccountAuthorizationDetailsInput{
 		Filter:   []*string{&localManagedPolicy},
 		MaxItems: &maxItems,
+	}
+
+	err := c.GetAccountAuthorizationDetailsPages(input, func(page *iam.GetAccountAuthorizationDetailsOutput, lastPage bool) bool {
+		for _, policy := range page.Policies {
+			if *policy.Path == iamPrefix {
+				result[*policy.PolicyName] = *policy.PolicyVersionList[0].Document
+			}
+		}
+		return true
 	})
 
 	if err != nil {
 		return nil, err
-	}
-
-	err = client.assertNotTruncated(response.IsTruncated)
-
-	if err != nil {
-		return nil, err
-	}
-
-	for _, policy := range response.Policies {
-		if *policy.Path == iamPrefix {
-			result[*policy.PolicyName] = *policy.PolicyVersionList[0].Document
-		}
 	}
 
 	return result, nil
