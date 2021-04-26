@@ -42,7 +42,7 @@ func TestApplier_ManageResources(t *testing.T) {
 
 	logger := infrastructure.NewLogger(t)
 	excludedUsers := []string{"lunarway"}
-	excludedDatabases := []string{"template0", "postgres"}
+	excludedDatabases := []string{"template0", "template1", "postgres"}
 
 	clientGroup := NewClientGroupForTest(&localhostCredentials)
 	applier := NewApplier(clientGroup, redshift.NewExclusions(excludedDatabases, excludedUsers), "478824949770", logger, redshift.DefaultReconcilerConfig())
