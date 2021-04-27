@@ -70,7 +70,7 @@ func (applier *Applier) Apply(model redshift.Model, dryRun bool) error {
 		return err
 	}
 
-	applier.logger.Info("Current model fetched", "model", currentModel)
+	applier.logger.Info("Current model fetched")
 
 	dag := redshift.Reconcile(currentModel, &model, applier.reconcilerConfig)
 
