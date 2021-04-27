@@ -48,14 +48,14 @@ func (applier *Applier) Apply(model hubble.Model, dryRun bool) error {
 
 	redshiftModel, iamModel, googleModel := applier.resolver.Resolve(model)
 
-	applier.logger.Info("Applying redshift model", "model")
+	applier.logger.Info("Applying redshift model")
 	err := applier.redshiftApplier.Apply(redshiftModel, dryRun)
 
 	if err != nil {
 		return err
 	}
 
-	applier.logger.Info("Applying IAM model", "model")
+	applier.logger.Info("Applying IAM model")
 	if !dryRun {
 		err = applier.iamApplier.Apply(iamModel)
 
