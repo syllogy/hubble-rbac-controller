@@ -163,7 +163,7 @@ func (client *Client) createDTO(roles []string) AwsRolesCustomSchemaDTO {
 func (client *Client) Users() ([]User, error) {
 	var result []User
 	err := client.fetchRemainingPages("", &result)
-	
+
 	return result, err
 }
 
