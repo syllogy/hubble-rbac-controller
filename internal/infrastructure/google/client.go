@@ -9,45 +9,26 @@ import (
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
-	"strings"
 )
 
-type AwsRoleCustomSchemaDTO struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
+
+type Client struct {
+	service      *admin.Service
+	awsAccountId string
 }
 
-type AwsRolesCustomSchemaDTO struct {
-	Roles           []AwsRoleCustomSchemaDTO `json:"IAM_Role"`
-	SessionDuration int                      `json:"SessionDuration"`
-}
+func NewGoogleClient(jsonKey []byte, principalEmail string, awsAccountId string) (*Client, error) {
 
-type User struct {
-	Id    string
-	email string
-}
+	service, err := createDirectoryService(jsonKey, principalEmail)
 
-func (r AwsRolesCustomSchemaDTO) Distinct() AwsRolesCustomSchemaDTO {
-	distinctRoles := make(map[string]AwsRoleCustomSchemaDTO)
-
-	for _, role := range r.Roles {
-		id := fmt.Sprintf("%s + %s", role.Type, role.Value)
-		distinctRoles[id] = role
+	if err != nil {
+		return nil, err
 	}
 
-	var roles []AwsRoleCustomSchemaDTO
-	for _, role := range distinctRoles {
-		roles = append(roles, role)
-	}
-
-	return AwsRolesCustomSchemaDTO{
-		Roles:           roles,
-		SessionDuration: r.SessionDuration,
-	}
-}
-
-func (r AwsRoleCustomSchemaDTO) isManaged(accountId string) bool {
-	return strings.Contains(r.Value, "/hubble-rbac/") && strings.Contains(r.Value, accountId)
+	return &Client{
+		service:      service,
+		awsAccountId: awsAccountId,
+	}, nil
 }
 
 // Build and returns an Admin SDK Directory service object authorized with
@@ -74,23 +55,48 @@ func createDirectoryService(jsonKey []byte, userEmail string) (*admin.Service, e
 	return srv, nil
 }
 
-type Client struct {
-	service      *admin.Service
-	awsAccountId string
-}
 
-func NewGoogleClient(jsonKey []byte, principalEmail string, awsAccountId string) (*Client, error) {
-
-	service, err := createDirectoryService(jsonKey, principalEmail)
+func (client *Client) Roles(userId string) ([]string, error) {
+	googleUser, err := client.service.Users.Get(userId).Projection("full").Do()
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{
-		service:      service,
-		awsAccountId: awsAccountId,
-	}, nil
+	var awsRoles AwsRolesCustomSchemaDTO
+	err = json.Unmarshal(googleUser.CustomSchemas["AWS_SAML"], &awsRoles)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result []string
+
+	for _, x := range awsRoles.Roles {
+		result = append(result, x.Value)
+	}
+
+	return result, err
+}
+
+func (client *Client) UpdateRoles(userId string, roles []string) error {
+	currentRoles, err := client.get(userId)
+
+	if err != nil {
+		return err
+	}
+
+	currentRoles = currentRoles.Distinct()
+
+	desiredRoles := client.createDTO(roles)
+
+	for _, r := range currentRoles.Roles {
+		if !r.isManaged(client.awsAccountId) {
+			desiredRoles.Roles = append(desiredRoles.Roles, r)
+		}
+	}
+
+	return client.update(userId, desiredRoles)
 }
 
 func (client *Client) get(userKey string) (AwsRolesCustomSchemaDTO, error) {
@@ -99,7 +105,7 @@ func (client *Client) get(userKey string) (AwsRolesCustomSchemaDTO, error) {
 
 	user, err := client.service.Users.Get(userKey).Projection("full").Do()
 	if err != nil {
-		return result, fmt.Errorf("unable to retrieve users: %w", err)
+		return result, fmt.Errorf("unable to retrieve user: %w", err)
 	}
 
 	err = json.Unmarshal(user.CustomSchemas["AWS_SAML"], &result)
@@ -118,7 +124,7 @@ func (client *Client) update(userKey string, awsRoles AwsRolesCustomSchemaDTO) e
 
 	user, err := client.service.Users.Get(userKey).Projection("full").Do()
 	if err != nil {
-		return fmt.Errorf("unable to retrieve users: %w", err)
+		return fmt.Errorf("unable to retrieve user: %w", err)
 	}
 
 	jsonRaw, err := json.Marshal(awsRoles)
@@ -157,24 +163,52 @@ func (client *Client) createDTO(roles []string) AwsRolesCustomSchemaDTO {
 }
 
 func (client *Client) Users() ([]User, error) {
+	var result []User
 
 	response, err := client.service.Users.
 		List().
-		Customer("my_customer"). //TODO: what should this be??
 		Projection("full").
-		MaxResults(500). //TODO: add support for more than 500 users!!
+		MaxResults(500).
 		Do()
 
 	if err != nil {
 		return nil, err
 	}
 
-	if len(response.Users) == 500 {
-		return nil, fmt.Errorf("too many users, no more than 500 are supported")
+	client.mapResponse(response, result)
+
+	if response.NextPageToken != "" {
+		err := client.fetchNextPage(response.NextPageToken, result)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	var result []User
+	return result, nil
+}
 
+func (client *Client) fetchNextPage(pageToken string, result []User) error {
+	response, err := client.service.Users.
+		List().
+		Projection("full").
+		PageToken(pageToken).
+		MaxResults(500).
+		Do()
+
+	if err != nil {
+		return err
+	}
+
+	client.mapResponse(response, result)
+
+	if response.NextPageToken != "" {
+		return client.fetchNextPage(response.NextPageToken, result)
+	}
+
+	return nil
+}
+
+func (client *Client) mapResponse(response *admin.Users, result []User) {
 	for _, u := range response.Users {
 		user := User{
 			Id:    u.Id,
@@ -182,49 +216,4 @@ func (client *Client) Users() ([]User, error) {
 		}
 		result = append(result, user)
 	}
-
-	return result, nil
-}
-
-func (client *Client) UpdateRoles(userId string, roles []string) error {
-	currentRoles, err := client.get(userId)
-
-	if err != nil {
-		return err
-	}
-
-	currentRoles = currentRoles.Distinct()
-
-	desiredRoles := client.createDTO(roles)
-
-	for _, r := range currentRoles.Roles {
-		if !r.isManaged(client.awsAccountId) {
-			desiredRoles.Roles = append(desiredRoles.Roles, r)
-		}
-	}
-
-	return client.update(userId, desiredRoles)
-}
-
-func (client *Client) Roles(userId string) ([]string, error) {
-	googleUser, err := client.service.Users.Get(userId).Projection("full").Do()
-
-	if err != nil {
-		return nil, err
-	}
-
-	var awsRoles AwsRolesCustomSchemaDTO
-	err = json.Unmarshal(googleUser.CustomSchemas["AWS_SAML"], &awsRoles)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var result []string
-
-	for _, x := range awsRoles.Roles {
-		result = append(result, x.Value)
-	}
-
-	return result, err
 }
