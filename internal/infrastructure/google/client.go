@@ -162,38 +162,24 @@ func (client *Client) createDTO(roles []string) AwsRolesCustomSchemaDTO {
 
 func (client *Client) Users() ([]User, error) {
 	var result []User
-
-	response, err := client.service.Users.
-		List().
-		Customer("my_customer"). //TODO: what should this be??
-		Projection("full").
-		MaxResults(500).
-		Do()
-
-	if err != nil {
-		return nil, err
-	}
-
-	result = client.mapResponse(response)
-
-	if response.NextPageToken != "" {
-		err = client.fetchRemainingPages(response.NextPageToken, &result)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
+	err := client.fetchRemainingPages("", &result)
+	
+	return result, err
 }
 
 func (client *Client) fetchRemainingPages(nextPageToken string, result *[]User) error {
-	response, err := client.service.Users.
+
+	usersCall := client.service.Users.
 		List().
 		Customer("my_customer"). //TODO: what should this be??
 		Projection("full").
-		PageToken(nextPageToken).
-		MaxResults(500).
-		Do()
+		MaxResults(500)
+
+	if nextPageToken != "" {
+		usersCall = usersCall.PageToken(nextPageToken)
+	}
+
+	response, err := usersCall.Do()
 
 	if err != nil {
 		return err
